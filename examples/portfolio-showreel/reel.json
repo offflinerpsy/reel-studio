@@ -1,0 +1,120 @@
+{
+  "title": "Studio portfolio \u2014 replace this brief",
+  "language": "en",
+  "bpm": 120,
+  "seed": 2026,
+  "palette": {
+    "ink": "#080d16",
+    "light": "#f5f3ea",
+    "accent": "#315bff",
+    "soft": "#bbcbff"
+  },
+  "sites": [
+    {
+      "id": "space",
+      "name": "SPACE",
+      "style": "editorial",
+      "hero": "assets/images/space.svg",
+      "eyebrow": "CONSIDERED SPACES",
+      "headline": [
+        "Room for",
+        "a new idea."
+      ],
+      "cta": "Explore the work",
+      "section_title": [
+        "Built around",
+        "the way you live."
+      ],
+      "section_copy": "A fictional design study. Replace this content and image with the actual brief."
+    },
+    {
+      "id": "slow",
+      "name": "SLOW",
+      "style": "serene",
+      "hero": "assets/images/slow.svg",
+      "eyebrow": "A DIFFERENT PACE",
+      "headline": [
+        "Find your",
+        "quiet place."
+      ],
+      "cta": "Discover the stay",
+      "section_title": [
+        "More room",
+        "to breathe."
+      ],
+      "section_copy": "A fictional design study. Replace this content and image with the actual brief."
+    },
+    {
+      "id": "motion",
+      "name": "MOTION",
+      "style": "bold",
+      "hero": "assets/images/motion.svg",
+      "eyebrow": "MOVE WITH PURPOSE",
+      "headline": [
+        "MAKE",
+        "IT MOVE."
+      ],
+      "cta": "Explore the collection",
+      "section_title": [
+        "Made for",
+        "every day."
+      ],
+      "section_copy": "A fictional design study. Replace this content and image with the actual brief."
+    }
+  ],
+  "scenes": [
+    {
+      "kind": "opening",
+      "beats": 6,
+      "tone": "ink",
+      "lines": [
+        "Make it clear.",
+        "Make it yours."
+      ],
+      "support": "Design in motion."
+    },
+    {
+      "kind": "grid",
+      "beats": 10,
+      "tone": "ink",
+      "lines": [
+        "Digital craft."
+      ],
+      "support": "A new point of view."
+    },
+    {
+      "kind": "scroll",
+      "beats": 12,
+      "tone": "light",
+      "lines": [
+        "Every screen.",
+        "Every detail."
+      ],
+      "site": "space",
+      "phone": true
+    },
+    {
+      "kind": "brand",
+      "beats": 12,
+      "tone": "ink",
+      "lines": [
+        "One idea.",
+        "A clear identity."
+      ],
+      "site": "motion"
+    },
+    {
+      "kind": "cta",
+      "beats": 12,
+      "tone": "accent",
+      "lines": [
+        "Your next",
+        "chapter."
+      ],
+      "action": [
+        "START HERE"
+      ],
+      "signature": "Your studio"
+    }
+  ]
+}

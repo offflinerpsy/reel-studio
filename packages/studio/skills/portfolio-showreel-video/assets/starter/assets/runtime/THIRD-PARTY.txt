@@ -1,0 +1,2 @@
+Manrope: SIL Open Font License; included Manrope-OFL.txt.
+GSAP is not bundled. Projects install gsap 3.14.2 separately; review https://gsap.com/standard-license/ before use.

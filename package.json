@@ -1,0 +1,17 @@
+{
+  "name": "reel-studio-workspace",
+  "version": "0.2.0",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=22" },
+  "scripts": {
+    "setup": "node scripts/setup.mjs",
+    "build": "node scripts/build.mjs",
+    "test": "node scripts/test.mjs",
+    "package": "node scripts/package.mjs",
+    "smoke:package": "node scripts/smoke-package.mjs",
+    "scan": "node scripts/scan-public.mjs",
+    "preview": "node scripts/preview.mjs",
+    "sync": "node scripts/sync.mjs"
+  }
+}

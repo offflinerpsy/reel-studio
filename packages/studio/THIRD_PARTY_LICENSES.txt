@@ -1,0 +1,17 @@
+Reel Studio third-party components
+
+Owner-authored code is licensed under MIT. Dependencies retain their own licenses.
+Exact versions are recorded in package-lock.json.
+
+React and React DOM — MIT
+Lucide — ISC
+Model Context Protocol SDK and MCP Apps SDK — MIT
+OpenAI MCP extensions — Apache-2.0
+Zod — MIT
+esbuild — MIT
+Microsoft Cognitive Services Speech SDK — MIT
+
+Editable templates retain the bundled Three.js MIT and font OFL notices.
+GSAP is not redistributed here. Templates install GSAP separately under its
+Standard License; read the upstream terms before using or redistributing it.
+The package contains editable examples, not the owner's completed videos.

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Kinetic Promo Video"
+  short_description: "Build bold, beat-synced social motion videos"
+  default_prompt: "Use $kinetic-promo-video to turn my topic or brief into an original, phone-readable motion reel."

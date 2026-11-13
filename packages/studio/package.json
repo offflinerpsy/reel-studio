@@ -1,0 +1,29 @@
+{
+  "name": "reel-studio",
+  "version": "0.2.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "test": "node --test --test-timeout=30000 tests/*.test.mjs",
+    "start": "node dist/server.mjs",
+    "dev": "node server/index.mjs --preview"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/ext-apps": "1.7.5",
+    "@modelcontextprotocol/sdk": "1.32.1",
+    "@openai/mcp-extensions": "0.1.0",
+    "lucide-react": "1.53.0",
+    "microsoft-cognitiveservices-speech-sdk": "1.52.0",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "zod": "4.4.3"
+  },
+  "devDependencies": {
+    "esbuild": "0.28.2"
+  },
+  "license": "MIT",
+  "engines": {
+    "node": ">=22"
+  }
+}

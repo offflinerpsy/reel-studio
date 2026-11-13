@@ -1,0 +1,12 @@
+{
+ "title":"Room for ideas", "language":"en", "bpm":120, "seed":2026,
+ "palette":"cobalt", "background":"panels",
+ "brief":{"audience":"independent makers","purpose":"fictional studio concept, no factual business claims"},
+ "scenes":[
+  {"beats":8,"kind":"type","lines":["TOO MUCH","NOISE?"],"tone":"ink","motion":"slam","motif":"bars"},
+  {"beats":8,"kind":"type","lines":["MAKE ROOM","FOR IDEAS."],"tone":"light","motion":"slide","motif":"disc"},
+  {"beats":8,"kind":"stack","lines":["A DESK.","A FRESH PAGE.","YOUR NEXT IDEA."],"tone":"soft","motion":"rise"},
+  {"beats":8,"kind":"type","lines":["START","SOMETHING."],"tone":"accent","motion":"hinge","motif":"stamp"},
+  {"beats":8,"kind":"cta","lines":["ROOM FOR","YOUR NEXT IDEA."],"action":["MAKE IT","HAPPEN."],"tone":"light","motion":"rise"}
+ ]
+}

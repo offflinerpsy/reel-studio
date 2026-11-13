@@ -1,0 +1,12 @@
+// Read-only startup projection. Full reel_state remains authoritative for producers and detail workflows.
+export function projectVersion(v, mediaURL) {
+  return {id:v.id,number:v.number,approved:Boolean(v.approval),...(mediaURL?{url:mediaURL(v.id),...(v.previewURL?{previewURL:v.previewURL}:{} ),...(v.posterURL?{posterURL:v.posterURL}:{} )}:{...(v.url?{url:v.url}:{}),...(v.previewURL?{previewURL:v.previewURL}:{}),...(v.posterURL?{posterURL:v.posterURL}:{})})};
+}
+export function projectForBoard(p,template,mediaURL){
+ const jobs=(p.jobs||[]).map(j=>({id:j.id,status:j.status,kind:j.kind,computeTarget:j.computeTarget}));
+ return {id:p.id,title:p.title,idea:String(p.idea||'').slice(0,240),status:p.status,createdAt:p.createdAt,updatedAt:p.updatedAt,revision:p.revision,productionLineId:p.productionLineId,computeTarget:p.computeTarget,template:template?{id:template.id,name:template.name,color:template.color,tag:template.tag,description:template.description,previewURL:template.previewURL,posterURL:template.posterURL}:null,versions:(p.versions||[]).map(v=>projectVersion(v,mediaURL)),jobs,detail:false};
+}
+export function buildBoardSnapshot(s,{templates=[],connections=[],profiles=[],productionLines=[],operations=null,compute=null,speech=null,version,mediaURL=null}={}){
+ const templateById=new Map(templates.map(t=>[t.id,t]));
+ return {schema:s.schema,revision:s.revision,updatedAt:s.updatedAt,compact:true,templates:templates.map(t=>({id:t.id,name:t.name,color:t.color,tag:t.tag,description:t.description,previewURL:t.previewURL,posterURL:t.posterURL,builtIn:t.builtIn})),profiles,productionLines,operations,compute,speech,connections,projects:(s.projects||[]).map(p=>projectForBoard(p,templateById.get(p.template?.id),mediaURL)),attempts:(s.attempts||[]).map(a=>({id:a.id,projectId:a.projectId,versionId:a.versionId,channel:a.channel,target:a.target,createdAt:a.createdAt,status:a.status,effect:a.effect,url:a.url,execution:a.execution?{ownerHost:a.execution.ownerHost,status:a.execution.status}:undefined})),totals:{projects:s.projects?.length||0,activeJobs:(s.projects||[]).flatMap(p=>p.jobs||[]).filter(j=>['starting','running','uncertain','cancel_requested'].includes(j.status)).length},accounts:(s.accounts||[]).map(a=>({id:a.id,channel:a.channel,account:a.account,label:a.label,status:a.status,archived:a.archived})),catalog:s.catalog||null,research:s.research||{status:'not_checked'},runtime:s.runtime,paused:s.paused,version};
+}

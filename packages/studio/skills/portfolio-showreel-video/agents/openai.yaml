@@ -1,0 +1,4 @@
+interface:
+  display_name: "Portfolio Showreel"
+  short_description: "Website fly-throughs, scrolling pages and brand reels"
+  default_prompt: "Use $portfolio-showreel-video to create an original portfolio reel with moving websites, responsive screens and brand identity."

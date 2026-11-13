@@ -1,0 +1,15 @@
+{
+  "name": "portfolio-showreel",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "python3 build.py .",
+    "check": "npx --yes hyperframes@0.8.36 check",
+    "render": "python3 render.py .",
+    "preview": "npx --yes hyperframes@0.8.36 preview --background --no-open",
+    "prepare-runtime": "node -e \"require('fs').copyFileSync('node_modules/gsap/dist/gsap.min.js','assets/runtime/gsap.min.js')\""
+  },
+  "dependencies": {
+    "gsap": "3.14.2"
+  }
+}

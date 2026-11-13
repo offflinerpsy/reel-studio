@@ -1,0 +1,10 @@
+import {mkdtemp} from 'node:fs/promises';
+import {spawn} from 'node:child_process';
+import {tmpdir} from 'node:os';
+import {join} from 'node:path';
+import {root} from './common.mjs';
+const isolated=await mkdtemp(join(tmpdir(),'reel-studio-preview-'));
+console.log(`Isolated preview data: ${isolated}`);
+const child=spawn('node',['server/index.mjs','--preview'],{cwd:join(root,'packages/studio'),stdio:'inherit',env:{...process.env,REEL_STUDIO_HOME:isolated}});
+child.on('exit',(code,signal)=>{if(signal) process.kill(process.pid,signal); else process.exit(code ?? 1)});
+for(const sig of ['SIGINT','SIGTERM']) process.on(sig,()=>child.kill(sig));

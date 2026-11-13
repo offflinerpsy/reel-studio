@@ -1,0 +1,14 @@
+Runtime dependencies retained from the accepted local production recipe.
+
+Three.js: three.module.js and three.core.js, original headers retained.
+MIT license in Three-LICENSE.txt. https://github.com/mrdoob/three.js
+Anton: Anton.ttf, SIL Open Font License in Anton-OFL.txt.
+https://github.com/google/fonts/tree/main/ofl/anton
+Manrope: Manrope.ttf, SIL Open Font License in Manrope-OFL.txt.
+https://github.com/google/fonts/tree/main/ofl/manrope
+
+world.js, build.py, music.py and verify.py are project-authored reusable code.
+font-metrics.json contains measured advance widths from the bundled fonts.
+The portrait, brand graphics, previous rendered films and private project data
+are not included in this package.
+GSAP is not bundled. Projects install gsap 3.14.2 separately; review https://gsap.com/standard-license/ before use.
