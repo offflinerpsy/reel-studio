@@ -108,7 +108,7 @@ function ReelStudio({subPath}:PluginNavPanelProps){
   const connect=async()=>{try{
    const workspace=await rpcRef.current.call('workspace',null);if(disposed)return;
    const target=frame.current?.contentWindow;if(!target)throw new Error('Workspace is unavailable.');
-   bridge=new AppBridge(null,{name:'Reel Studio in BB',version:'0.3.0'},{serverTools:{},serverResources:{},message:{text:{}},updateModelContext:{text:{},structuredContent:{}}},{hostContext:{theme:themeRef.current,displayMode:'fullscreen',availableDisplayModes:['fullscreen'],platform:'web',locale:'en'}});bridgeRef.current=bridge;
+   bridge=new AppBridge(null,{name:'Reel Studio in BB',version:'0.3.1'},{serverTools:{},serverResources:{},message:{text:{}},updateModelContext:{text:{},structuredContent:{}}},{hostContext:{theme:themeRef.current,displayMode:'fullscreen',availableDisplayModes:['fullscreen'],platform:'web',locale:'en'}});bridgeRef.current=bridge;
    bridge.oncalltool=async params=>{
     if(disposed||released)throw new Error('Panel closed.');
     try{return await rpcRef.current.call('callTool',{name:params.name,arguments:params.arguments,...(binding.current?{binding:binding.current}:{})}) as CallToolResult;}

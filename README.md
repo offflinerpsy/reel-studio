@@ -2,7 +2,7 @@
 
 Reel Studio is an open-source workspace for planning and producing short videos, by Alex Yarosh. Organize drafts, editable templates, immutable video versions, account connections, and approval and publication records in one place.
 
-Reel Studio **v0.3.0 is beta software**. It includes a Codex MCP App and a native BB adapter. Host installation, generation and publishing depend on your environment; see [host compatibility](docs/hosts.md). Public documentation and interface text are in English.
+Reel Studio **v0.3.1 is beta software**. It includes a Codex MCP App and a native BB adapter. Host installation, generation and publishing depend on your environment; see [host compatibility](docs/hosts.md). Public documentation and interface text are in English.
 
 ## Get started
 
