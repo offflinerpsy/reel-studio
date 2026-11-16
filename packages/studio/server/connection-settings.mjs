@@ -57,7 +57,7 @@ function writeStore(dir,file,value) {
 }
 export function createConnectionSettings({home,env=process.env,fetchImpl=fetch,now=Date.now,azureCheck}={}) {
   if(typeof home!=='string'||resolve(home)!==home)throw fail('invalid_home');
-  const dir=join(home,'private-connections'),file=join(dir,'credentials.json'),checks=new Map(),oauth=createYouTubeOAuth({fetchImpl,now});
+  const dir=join(home,'private-connections'),file=join(dir,'credentials.json'),checks=new Map(),configurationRevisions=new Map(),oauth=createYouTubeOAuth({fetchImpl,now});
   let revision=0;
   function credentials(id) {
     service(id);const saved=readStore(file).services[id];if(saved)return structuredClone(saved);
@@ -73,8 +73,11 @@ export function createConnectionSettings({home,env=process.env,fetchImpl=fetch,n
   }
   const readPublic=()=>({storage:'private_file_permissions',services:SERVICES.map(status)});
   function persist(id,value){const store=readStore(file);store.services[id]=value;writeStore(dir,file,store);revision++;checks.delete(id);}
-  function save(id,input){service(id);persist(id,validate(id,input));return status(id);}
-  function remove(id){service(id);const store=readStore(file);delete store.services[id];writeStore(dir,file,store);revision++;checks.delete(id);return status(id);}
+  // Token refresh is not a configuration replacement. Only an explicit change
+  // invalidates in-flight checks and outstanding browser account selections.
+  function configurationChanged(id){configurationRevisions.set(id,(configurationRevisions.get(id)||0)+1);if(id==='youtube')oauth.clearPending();}
+  function save(id,input){service(id);persist(id,validate(id,input));configurationChanged(id);return status(id);}
+  function remove(id){service(id);const store=readStore(file);delete store.services[id];writeStore(dir,file,store);revision++;checks.delete(id);configurationChanged(id);return status(id);}
   async function getYouTubeAccessToken() {
     let c=credentials('youtube');const expectedRevision=revision;
     if(!c?.refreshToken||!c.channel?.id)throw fail('authorization_required');
@@ -86,7 +89,7 @@ export function createConnectionSettings({home,env=process.env,fetchImpl=fetch,n
     return {accessToken:c.accessToken,channel};
   }
   async function check(id) {
-    service(id);const c=credentials(id),checkedAt=new Date(now()).toISOString();let detail={};
+    service(id);const c=credentials(id),expectedConfiguration=configurationRevisions.get(id),checkedAt=new Date(now()).toISOString();let detail={};
     try {
       if(!c)throw fail('not_configured');
       if(id==='azure') {
@@ -106,12 +109,12 @@ export function createConnectionSettings({home,env=process.env,fetchImpl=fetch,n
         detail={targetId:String(target.id),canPost:true};
       }
       if(id==='youtube'){const result=await getYouTubeAccessToken();detail={channelId:result.channel.id};}
-      checks.set(id,{status:'verified',checkedAt,error:null,...detail});
-    }catch(error){checks.set(id,{status:'failed',checkedAt,error:/^(http_\d+|not_configured|authorization_required|channel_mismatch|target_mismatch|posting_permission_missing|settings_changed)$/.test(error?.code||'')?error.code:'provider_check_failed'});}
+      if(configurationRevisions.get(id)===expectedConfiguration)checks.set(id,{status:'verified',checkedAt,error:null,...detail});
+    }catch(error){if(configurationRevisions.get(id)===expectedConfiguration)checks.set(id,{status:'failed',checkedAt,error:/^(http_\d+|not_configured|authorization_required|channel_mismatch|target_mismatch|posting_permission_missing|settings_changed)$/.test(error?.code||'')?error.code:'provider_check_failed'});}
     return status(id);
   }
   function startYouTubeOAuth({redirectURI}) {const client=credentials('youtube');if(!client)throw fail('not_configured');return oauth.start({client:validateYouTubeClient({clientId:client.clientId,...(client.clientSecret?{clientSecret:client.clientSecret}:{})}),redirectURI});}
-  async function completeYouTubeOAuth(input) {const expectedRevision=revision,result=await oauth.complete(input),current=credentials('youtube');if(revision!==expectedRevision||current?.clientId!==result.clientId||current?.clientSecret!==result.clientSecret)throw fail('settings_changed');persist('youtube',result);checks.set('youtube',{status:'verified',checkedAt:new Date(now()).toISOString(),error:null,channelId:result.channel.id});return status('youtube');}
+  async function completeYouTubeOAuth(input) {const expectedRevision=revision,result=await oauth.complete(input),current=credentials('youtube');if(revision!==expectedRevision||current?.clientId!==result.clientId||current?.clientSecret!==result.clientSecret)throw fail('settings_changed');persist('youtube',result);configurationChanged('youtube');checks.set('youtube',{status:'verified',checkedAt:new Date(now()).toISOString(),error:null,channelId:result.channel.id});return status('youtube');}
   function formHTML(id,{actionURL,oauthStartURL,notice=''}={}) {
     service(id);
     // Root supplies same-origin protected URLs. Do not accept arbitrary external form targets.

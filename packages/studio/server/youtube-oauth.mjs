@@ -65,5 +65,5 @@ export function createYouTubeOAuth({fetchImpl=fetch,now=Date.now}={}) {
     const data=await youtubeJSON(fetchImpl,TOKEN_URL,{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:tokenBody(validateYouTubeClient({clientId:saved.clientId,...(saved.clientSecret?{clientSecret:saved.clientSecret}:{})}),{grant_type:'refresh_token',refresh_token:saved.refreshToken})});
     return tokens(data,now,saved.refreshToken);
   }
-  return {start,complete,refresh};
+  return {start,complete,refresh,clearPending:()=>pending.clear()};
 }

@@ -82,7 +82,7 @@ export function createDataForSeoDirect({ getCredentials, fetchImpl = fetch } = {
     request,
     async checkAccess(options = {}) {
       const result = await request({ method: 'GET', path: ACCESS_PATH }, options);
-      if (result.tasks.some(task => task.status_code !== 20000)) throw failure('access_denied');
+      if (result.tasks.length !== 1 || result.tasks[0].status_code !== 20000) throw failure('access_denied');
       return { status: 'verified', provider: 'DataForSEO', route: 'direct', configured: true };
     },
   };

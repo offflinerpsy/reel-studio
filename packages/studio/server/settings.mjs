@@ -29,8 +29,8 @@ export function installationSettings({home,pluginRoot,runtimeLabel,env=process.e
  function setEngine(engine){return save({...read().config,engine:z.enum(['codex','claude']).parse(engine)});}
  function setup(){const {config}=read(),dir=join(home,'installation-setup');if(existsSync(dir)&&lstatSync(dir).isSymbolicLink())throw new Error('Setup directory must not be a symbolic link');mkdirSync(dir,{recursive:true,mode:0o700});chmodSync(dir,0o700);
   const runner=join(config.localPlugin,'scripts','run-server.sh');let command,remoteConfigPath=null;
-  if(config.mode==='ssh'){remoteConfigPath=join(dir,'remote.json');privateWrite(remoteConfigPath,validateRemoteConfig({...config.remote,localHome:config.localHome,localPlugin:config.localPlugin}));command=`REEL_REMOTE_CONFIG=${quote(remoteConfigPath)} ${quote(runner)}`;}
-  else command=`env -u REEL_REMOTE_CONFIG REEL_STUDIO_HOME=${quote(config.localHome)} ${quote(runner)}`;
+  if(config.mode==='ssh'){remoteConfigPath=join(dir,'remote.json');privateWrite(remoteConfigPath,validateRemoteConfig({...config.remote,localHome:config.localHome,localPlugin:config.localPlugin}));command=`REEL_REMOTE_CONFIG=${quote(remoteConfigPath)} sh ${quote(runner)}`;}
+  else command=`env -u REEL_REMOTE_CONFIG REEL_STUDIO_HOME=${quote(config.localHome)} sh ${quote(runner)}`;
   return {command,remoteConfigPath,telegramTargetCommand:config.telegramChatId?`export REEL_TELEGRAM_CHAT_ID=${quote(config.telegramChatId)}`:null,credentialEnv:'REEL_TELEGRAM_BOT_TOKEN',requiresReconnect:true,applied:false};
  }
  return {read,save,setup,setEngine};

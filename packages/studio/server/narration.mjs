@@ -1,5 +1,5 @@
 import { createHash, randomUUID } from 'node:crypto';
-import { mkdir, readFile, writeFile, rename, open, opendir } from 'node:fs/promises';
+import { mkdir, writeFile, rename, open, opendir, lstat, realpath } from 'node:fs/promises';
 import { constants } from 'node:fs';
 import { join } from 'node:path';
 import { azureSpeechConfig, listAzureSpeechVoices, synthesizeAzureSpeech, synthesizeAzureSpeechSdk, parsePcmWav } from './speech-providers.mjs';
@@ -37,6 +37,27 @@ export function createNarrationService(home, { getCredentials = async () => null
   const directory = join(home, 'narration'), audioDirectory = join(home, 'speech-audio');
   const receiptPath = id => join(directory, `${id}.json`);
   async function initialize() { await mkdir(directory, { recursive: true, mode: 0o700 }); await mkdir(audioDirectory, { recursive: true, mode: 0o700 }); }
+  async function readArtifact(folder, name, maxBytes) {
+    const parent = join(home, folder), path = join(parent, name), canonical = join(await realpath(home), folder, name);
+    const parentInfo = await lstat(parent);
+    if (parentInfo.isSymbolicLink() || !parentInfo.isDirectory() || await realpath(path) !== canonical) throw new Error('Artifact escaped its owning folder');
+    const handle = await open(path, constants.O_RDONLY | constants.O_NOFOLLOW);
+    try {
+      const info = await handle.stat();
+      if (!info.isFile() || info.size < 1 || info.size > maxBytes) throw new Error('Artifact size is invalid');
+      const chunks = []; let length = 0;
+      for (;;) {
+        const buffer = Buffer.allocUnsafe(Math.min(65536, maxBytes - length + 1));
+        const {bytesRead} = await handle.read(buffer, 0, buffer.length, null);
+        if (!bytesRead) break;
+        length += bytesRead; if (length > maxBytes) throw new Error('Artifact exceeded its size limit');
+        chunks.push(buffer.subarray(0, bytesRead));
+      }
+      const after = await lstat(path);
+      if (after.isSymbolicLink() || after.dev !== info.dev || after.ino !== info.ino || length !== info.size || await realpath(path) !== canonical) throw new Error('Artifact changed during verification');
+      return Buffer.concat(chunks, length);
+    } finally { await handle.close(); }
+  }
   function publicReceipt(receipt, extra = {}) {
     const { id, requestKey, fingerprint, status, effect, createdAt, completedAt, provider, model, mode, route, voice, locale, rate, pitch, style, scriptCharacters, bytes, sha256, duration, hasWordTimings } = receipt;
     return { id, requestId: id, requestKey, fingerprint, status, effect, createdAt, completedAt, provider, model, mode, route, voice, locale, rate, pitch, style, scriptCharacters, bytes, sha256, duration, hasWordTimings,
@@ -59,10 +80,10 @@ export function createNarrationService(home, { getCredentials = async () => null
     const receipt = await metadata(id); if (!receipt) return null;
     if (receipt.status === 'complete') {
       try {
-        const audio = await readFile(join(audioDirectory, `${id}.wav`)); const info = parsePcmWav(audio);
+        const audio = await readArtifact('speech-audio', `${id}.wav`, 128 * 1024 * 1024); const info = parsePcmWav(audio);
         if (hash(audio) !== receipt.sha256 || audio.length !== receipt.bytes || Math.abs(info.duration - receipt.duration) > 0.000001) throw new Error('mismatch');
         if (receipt.hasWordTimings) {
-          const timings = await readFile(join(directory, `${id}.words.json`));
+          const timings = await readArtifact('narration', `${id}.words.json`, 4 * 1024 * 1024);
           if (hash(timings) !== receipt.timingsSha256) throw new Error('timings mismatch');
         }
       } catch { return publicReceipt({ ...receipt, status: 'artifact_unverified', effect: 'delivered_unverified' }); }

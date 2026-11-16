@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, readFile, writeFile, rm, stat, mkdir } from 'node:fs/promises';
+import { mkdtemp, readFile, writeFile, rm, stat, mkdir, rename, symlink } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createNarrationService } from '../server/narration.mjs';
@@ -114,4 +114,18 @@ test('listing stops at a bounded directory size and never invents a latest recei
   for (let start = 0; start < 4097; start += 100) await Promise.all(Array.from({ length: Math.min(100, 4097 - start) }, (_, offset) => writeFile(join(directory, `ignored-${start + offset}`), '')));
   const service = createNarrationService(home);
   await assert.rejects(service.list(), error => error.code === 'narration_list_limit'); await assert.rejects(service.latest(), error => error.code === 'narration_list_limit');
+});
+
+test('reconciliation does not verify substituted audio, timings or artifact directories through symlinks', async t => {
+  for (const artifact of ['audio', 'timings', 'audio-directory']) {
+    const home = await fixture(t); let calls = 0;
+    const service = createNarrationService(home, {getCredentials, listVoices, synthesize: async () => {calls++; return result();}});
+    const receipt = await service.generate(input);
+    const path = artifact === 'audio' ? receipt.file : artifact === 'timings' ? receipt.timingsPath : join(home, 'speech-audio');
+    await rename(path, `${path}.original`); await symlink(`${path}.original`, path);
+    const read = await service.readByKey(input.requestKey);
+    assert.equal(read.status, 'artifact_unverified', artifact);
+    assert.equal(read.effect, 'delivered_unverified'); assert.equal(read.file, undefined);
+    await assert.rejects(service.generate(input), /reconciliation/); assert.equal(calls, 1);
+  }
 });

@@ -31,6 +31,8 @@ For package or synchronization changes, also run `npm run package` and inspect `
 
 When changing MCP tools or their input schemas, run `npm run capabilities` before building to refresh the BB contract from the actual local server. This uses an isolated library and does not sign in, generate media or call a provider.
 
+See the [testing guide](docs/testing.md) for the release matrix, clean-install checks and optional external qualification. A bug report with a minimal reproduction or a pull request with a focused regression is especially useful.
+
 Keep credentials, private account details, production bindings and personal media out of issues, commits and test fixtures. Use synthetic data and editable examples with clear provenance and redistribution rights. Do not run paid generation or publish content as a contribution check. Preserve third-party notices and licenses.
 
 Open a pull request describing the problem, the change and any limitations. A maintainer may request changes before merging. For a security vulnerability, follow [SECURITY.md](SECURITY.md) instead of opening a public issue.

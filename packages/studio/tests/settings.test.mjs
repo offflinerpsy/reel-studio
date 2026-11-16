@@ -3,12 +3,23 @@ import assert from 'node:assert/strict';
 import {mkdtempSync,mkdirSync,writeFileSync,readFileSync,statSync,rmSync,symlinkSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
+import {execFileSync} from 'node:child_process';
 import {installationSettings,settingsSchema} from '../server/settings.mjs';
 import {createStudio} from '../server/index.mjs';
 
 function fixture(t){const home=mkdtempSync(join(tmpdir(),'reel-settings-'));t.after(()=>rmSync(home,{recursive:true,force:true}));return home;}
 const local=home=>({mode:'local',localHome:home,localPlugin:'/opt/reel-studio',telegramChatId:'@example_channel'});
 const remote={sshHost:'worker@studio.example',remoteHome:'/srv/studio/data',remotePlugin:'/srv/studio/plugin',remoteNode:'/usr/bin/node'};
+
+test('exported local and SSH commands launch a non-executable script from a path with spaces and quotes',t=>{
+ const home=fixture(t),plugin=join(home,"owner's plugin"),scripts=join(plugin,'scripts');mkdirSync(scripts,{recursive:true});
+ const runner=join(scripts,'run-server.sh');writeFileSync(runner,'#!/bin/sh\nprintf "%s\\n%s" "$REEL_STUDIO_HOME" "$REEL_REMOTE_CONFIG"\n',{mode:0o644});
+ const settings=installationSettings({home,pluginRoot:plugin,runtimeLabel:'local'});
+ const run=command=>execFileSync('sh',['-c',command],{encoding:'utf8',env:{PATH:process.env.PATH,REEL_REMOTE_CONFIG:'stale',REEL_STUDIO_HOME:'previous'}});
+ settings.save({...local(home),localPlugin:plugin});assert.equal(run(settings.setup().command),home+'\n');
+ settings.save({...local(home),localPlugin:plugin,mode:'ssh',remote});const configured=settings.setup();
+ assert.equal(run(configured.command),'previous\n'+configured.remoteConfigPath);assert.equal(statSync(runner).mode&0o111,0);
+});
 
 test('private settings validate SSH boundaries and reject credential fields before persistence',t=>{
  const home=fixture(t),s=installationSettings({home,pluginRoot:'/opt/plugin',runtimeLabel:'local',env:{REEL_TELEGRAM_BOT_TOKEN:'never-return-this-token',REEL_TELEGRAM_CHAT_ID:'@active_channel'}});

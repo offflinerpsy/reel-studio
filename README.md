@@ -4,6 +4,8 @@ Reel Studio is an open-source workspace for planning and producing short videos,
 
 Reel Studio is **beta software**. Version 0.4.0 adds a shared setup interface for Codex and BB, your own Codex or Claude Code executor, and optional voice, research and publishing connections. Host installation, generation and publishing depend on your environment; see [host compatibility](docs/hosts.md). Public documentation and interface text are in English.
 
+Recommended download: **[0.4.1 beta](https://github.com/offflinerpsy/reel-studio/releases/tag/v0.4.1)**, with fixes from independent security, concurrency and clean-install testing.
+
 ## Get started
 
 You need Node.js 22 or later, npm, and FFmpeg with `ffprobe` on your `PATH`. Production jobs use your own authenticated official Codex or Claude Code CLI on the execution host. The editable examples also require Python 3. Keep credentials and personal media outside this repository.
@@ -46,5 +48,7 @@ The [Paper Worlds Science recipe](examples/paper-worlds-science/README.md) adds 
 ## Contributing and license
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) and [SECURITY.md](SECURITY.md). Owner-authored code is available under the [MIT License](LICENSE); third-party components retain their own terms. The repository does not include personal finished videos.
+
+You can fork and develop your own version, report an issue or propose a pull request. Maintainers review what enters this repository; support is best effort. When sharing or reusing changes, preserve the applicable license and copyright notices. See the [testing guide](docs/testing.md) for verification expectations.
 
 If Reel Studio is useful to you, please [star the repository](https://github.com/offflinerpsy/reel-studio).

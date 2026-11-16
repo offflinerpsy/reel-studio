@@ -1,21 +1,21 @@
 {
-  "sourceVersion": "0.4.0",
+  "sourceVersion": "0.4.1",
   "sourceSha256": "2a0afb0fc2349d6a3e7d3d5bf2dd8555d8915de153c1eef9a20cedd9d7b4c3b3",
   "sdkVersion": "1.32.1",
   "sourceFiles": {
     "index.mjs": "2a0afb0fc2349d6a3e7d3d5bf2dd8555d8915de153c1eef9a20cedd9d7b4c3b3",
     "store.mjs": "cfd877cab248be803e457c288e739fa94883f72ba91a24eb8c1cb57d9c5f3979",
-    "settings.mjs": "ecc3e4df08439570318f9d58ab76a03cb5b25a52e703976fdbb886bbace3f2cf",
+    "settings.mjs": "31fc7745e7ff842393403000d2b34b9210a12eaa842679e00618a188f6f19e58",
     "remote-config.mjs": "3fb1b2188d233732353344e2204dce6b89e4a8b4ea7cc04b520244c7f0342bdf",
     "mac-ui-relay.mjs": "93a9eb731a62d4a69c56cd845fa0bd91417006bd9a5c16a6c5cc131f102b7a0d",
     "media-transfer.mjs": "629361f2b33104e0c0e08eb3cf38b74601826d197b1fb543114c3313336e4cd8",
-    "claude-runtime.mjs": "e33a375c77984fa089da0ac0baa81c0b781349b7ea54f97f635ef96564d53d9a",
+    "claude-runtime.mjs": "dd75acc7389614eed5a0bf9959d8837e8b5e37d3cefbff2dfad264190ecb6413",
     "runtime-selection.mjs": "b9dbb8e53a4c159f3f7ff25e2dbc148c54d38757f8ccf25da26adc840298b099",
-    "connection-settings.mjs": "87444bb7dbb29d90a618e1bdf7e019bf90f27220ec65cf4502ff4a8c1d761e0a",
+    "connection-settings.mjs": "bd7b715e0f640778c613b77555516d37f4b3f34b6e9efa278ae3dab95e5f6843",
     "setup-http.mjs": "dcb28bec337d0ab749ad9270d951fda62218fb36c25011614f2987317aab40e5",
-    "youtube-oauth.mjs": "0a5823cf6dc55e0186b1777d12d969f1ec4ce5051fceb90801b473a508740c5b",
-    "narration.mjs": "874af678d695e6d077ac832b47f2eee035a839115cda5fba67dd6827b79f0ee6",
-    "dataforseo-direct.mjs": "fe36db3891cc193243292694cf90d42eb7fb1cc294103c2ab39a36eb9540b25a",
+    "youtube-oauth.mjs": "986ca18eb92e57451db5aff3c124cdcddcc5f2c83579f7537b67773e0cc973bc",
+    "narration.mjs": "a0d5859b06f81340dad3e3fe1d4507fda0dc6518148ddee4c988515c3c827463",
+    "dataforseo-direct.mjs": "edd3a13ee4d2dd2ae2857713a5b4b6caef9b312c482065f3b0e687963952770e",
     "speech-providers.mjs": "cca62cc36008d2a35f07a8a1de2f194d7e2ceae8df7e7ddba1466cf9d43f0824"
   },
   "schemas": {

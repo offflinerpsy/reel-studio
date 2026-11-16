@@ -28,7 +28,7 @@ async function fixture({auth = {loggedIn: true, authMethod: 'claude.ai', apiProv
     return child;
   };
   const runtime = new ClaudeRuntime({spawnImpl, env, timeoutMs: 100, killTimeoutMs: 10, binary: 'official-claude-fixture'});
-  return {runtime, cwd, calls, processes, run: () => calls.filter(call => call.args.includes('--print')), async cleanup() { await runtime.close(); await rm(cwd, {recursive: true, force: true}); }};
+  return {runtime, spawnImpl, cwd, calls, processes, run: () => calls.filter(call => call.args.includes('--print')), async cleanup() { await runtime.close(); await rm(cwd, {recursive: true, force: true}); }};
 }
 
 test('catalog/check use official read-only commands and redact account identity without paid inference', async () => {
@@ -156,3 +156,76 @@ test('unsupported aliases/effort and admitted Codex routes fail before CLI launc
     assert.equal(f.calls.length, 0);
   } finally { await f.cleanup(); }
 });
+
+
+test('concurrent explicit resumes after restart share one loaded job and cannot replay the same native session', async () => {
+  const f = await fixture();
+  try {
+    const started = await f.runtime.start({cwd: f.cwd, prompt: 'First turn', model: 'sonnet', effort: 'high'});
+    f.processes[0].emitJSON({type: 'result', session_id: started.threadId, subtype: 'success', uuid: 'completed-first'});
+    await f.runtime.reconcile(started.threadId);
+    f.processes[0].emit('close', 0);
+    await f.runtime.close();
+    const restarted = new ClaudeRuntime({spawnImpl: f.spawnImpl, env: {}, timeoutMs: 100, killTimeoutMs: 10});
+    try {
+      const outcomes = await Promise.allSettled([1, 2].map(() => restarted.steer(started.threadId, {cwd: f.cwd, prompt: 'One explicit continuation'})));
+      assert.equal(outcomes.filter(value => value.status === 'fulfilled').length, 1);
+      assert.equal(f.run().length, 2);
+      assert.match(outcomes.find(value => value.status === 'rejected').reason.message, /active or uncertain/);
+    } finally { await restarted.close(); }
+  } finally { await f.cleanup(); }
+});
+
+test('independent adapters cannot concurrently resume or reuse a stale terminal receipt', async () => {
+  const f = await fixture();
+  const reopened = Array.from({length: 2}, () => new ClaudeRuntime({spawnImpl: f.spawnImpl, env: {}, timeoutMs: 100, killTimeoutMs: 10}));
+  try {
+    const started = await f.runtime.start({cwd: f.cwd, prompt: 'Original turn', model: 'sonnet', effort: 'high'});
+    f.processes[0].emitJSON({type: 'result', session_id: started.threadId, subtype: 'success'});
+    await f.runtime.reconcile(started.threadId); f.processes[0].emit('close', 0); await f.runtime.close();
+    await Promise.all(reopened.map(runtime => runtime.reconcile(started.threadId, {cwd: f.cwd})));
+    const outcomes = await Promise.allSettled(reopened.map(runtime => runtime.steer(started.threadId, {cwd: f.cwd, prompt: 'Continue once'})));
+    assert.equal(outcomes.filter(value => value.status === 'fulfilled').length, 1);
+    assert.equal(f.run().length, 2);
+    const winner = outcomes.findIndex(value => value.status === 'fulfilled'), loser = 1 - winner;
+    f.processes[1].emitJSON({type: 'result', session_id: started.threadId, subtype: 'success'});
+    await reopened[winner].reconcile(started.threadId); f.processes[1].emit('close', 0);
+    await assert.rejects(reopened[loser].steer(started.threadId, {cwd: f.cwd, prompt: 'Stale replay'}), /receipt changed|active or uncertain/);
+    const fresh = await reopened[loser].reconcile(started.threadId);
+    assert.equal(fresh.latestTurn.id, outcomes[winner].value.turnId);
+    assert.equal(f.run().length, 2);
+  } finally { await Promise.all(reopened.map(runtime => runtime.close())); await f.cleanup(); }
+});
+
+for (const boundary of ['catalog', 'thread-ready', 'effect-save', 'resume-thread-ready']) {
+  test(`closing while ${boundary} is awaiting prevents any later Claude process`, async () => {
+    const f = await fixture(); let release, entered;
+    const gate = new Promise(resolve => {release = resolve;}), atBoundary = new Promise(resolve => {entered = resolve;});
+    try {
+      let original;
+      if (boundary === 'resume-thread-ready') {
+        original = await f.runtime.start({cwd: f.cwd, prompt: 'Original turn', model: 'sonnet', effort: 'high'});
+        f.processes[0].emitJSON({type: 'result', session_id: original.threadId, subtype: 'success'});
+        await f.runtime.reconcile(original.threadId); f.processes[0].emit('close', 0);
+      }
+      if (boundary === 'catalog') {
+        const catalog = f.runtime.catalog.bind(f.runtime);
+        f.runtime.catalog = async () => {const value = await catalog(); entered(); await gate; return value;};
+      } else if (boundary === 'effect-save') {
+        const save = f.runtime.save.bind(f.runtime);
+        f.runtime.save = async job => {await save(job); if (job.receipt.effect === 'possibly_delivered') {entered(); await gate;}};
+      }
+      const options = {cwd: f.cwd, prompt: 'Authorized next turn', model: 'sonnet', effort: 'high', onEvent: async event => {
+        if (boundary.endsWith('thread-ready') && event.method === 'reel/thread-ready') {entered(); await gate;}
+      }};
+      const pending = original ? f.runtime.steer(original.threadId, options) : f.runtime.start(options);
+      const outcome = pending.then(value => ({value}), error => ({error}));
+      await atBoundary; await f.runtime.close(); release();
+      const completed = await outcome;
+      assert.match(completed.error?.message || '', /closed/);
+      assert.equal(f.run().length, original ? 1 : 0);
+      const receipt = JSON.parse(await readFile(join(f.cwd, '.reel-claude-runtime.json'), 'utf8'));
+      assert.equal(receipt.effect, 'not_delivered'); assert.equal(receipt.status, 'failed');
+    } finally {release(); await f.cleanup();}
+  });
+}

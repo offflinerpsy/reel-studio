@@ -59,3 +59,10 @@ test('invalid JSON, oversized responses and unavailable own credentials fail wit
   let calls = 0; const missing = createDataForSeoDirect({ getCredentials: async () => null, fetchImpl: async () => { calls++; } });
   await assert.rejects(missing.request(request), /not_configured/); assert.equal(calls, 0);
 });
+
+test('an empty or ambiguous access response cannot verify an account connection', async () => {
+  for (const tasks of [[], [{status_code: 20000}, {status_code: 20000}], [null]]) {
+    const adapter = createDataForSeoDirect({getCredentials, fetchImpl: async () => new Response(JSON.stringify({status_code: 20000, tasks}))});
+    await assert.rejects(adapter.checkAccess(), error => error.code === 'dataforseo_access_denied' && error.effect === 'not_delivered');
+  }
+});

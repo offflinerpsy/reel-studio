@@ -23,7 +23,7 @@ export class ClaudeRuntime {
   constructor({spawnImpl = spawn, binary = process.env.CLAUDE_BIN || 'claude', env = process.env, timeoutMs = 30000, killTimeoutMs = 2000} = {}) {
     this.spawnImpl = spawnImpl; this.binary = binary; this.env = env;
     this.timeoutMs = timeoutMs; this.killTimeoutMs = killTimeoutMs;
-    this.jobs = new Map(); this.closed = false;
+    this.jobs = new Map(); this.loading = new Map(); this.closed = false;
   }
 
   subscriptionEnvironment() {
@@ -88,18 +88,41 @@ export class ClaudeRuntime {
 
   async load(threadId, cwd) {
     if (!UUID.test(threadId || '')) throw new Error('A native Claude session UUID is required');
+    const directory = cwd ? await this.directory(cwd) : null;
     const existing = this.jobs.get(threadId);
-    if (existing) return existing;
-    if (!cwd) throw new Error('Claude reconciliation needs the original owned job directory; it never resumes a session to inspect it');
-    const directory = await this.directory(cwd), file = join(directory, RECEIPT);
+    if (existing) {
+      if (directory && existing.receipt.cwd !== directory) throw new Error('Claude session is bound to its original owned job directory');
+      return existing;
+    }
+    if (!directory) throw new Error('Claude reconciliation needs the original owned job directory; it never resumes a session to inspect it');
+    const pending = this.loading.get(threadId);
+    if (pending) {
+      if (pending.directory !== directory) throw new Error('Claude session is bound to its original owned job directory');
+      return pending.promise;
+    }
+    // Cold reconciliation callers must share the same object before steer takes
+    // its in-memory resume fence; independent loads could otherwise both resume.
+    const promise = this.loadReceipt(threadId, directory);
+    this.loading.set(threadId, {directory, promise});
+    try { return await promise; } finally { this.loading.delete(threadId); }
+  }
+
+  async loadReceipt(threadId, directory) {
+    const file = join(directory, RECEIPT);
+    const receipt = await this.readReceipt(threadId, directory);
+    const job = {file, receipt, chain: Promise.resolve(), child: null};
+    this.jobs.set(threadId, job);
+    return job;
+  }
+
+  async readReceipt(threadId, directory) {
+    const file = join(directory, RECEIPT);
     const handle = await open(file, constants.O_RDONLY | constants.O_NOFOLLOW);
     let receipt;
     try { if ((await handle.stat()).size > 32768) throw new Error('Claude receipt exceeded limit'); receipt = JSON.parse(await handle.readFile('utf8')); }
     finally { await handle.close(); }
     if (receipt.schema !== 'reel-claude-job/v1' || receipt.engine !== 'claude' || receipt.threadId !== threadId || receipt.cwd !== directory || !UUID.test(receipt.turnId || '')) throw new Error('Claude job receipt does not match the original session and directory');
-    const job = {file, receipt, chain: Promise.resolve(), child: null};
-    this.jobs.set(threadId, job);
-    return job;
+    return receipt;
   }
 
   validate(options) {
@@ -128,9 +151,17 @@ export class ClaudeRuntime {
 
   async launch(job, prompt, resume) {
     const r = job.receipt;
+    const rejectClosed = async () => {
+      r.status = 'failed'; r.effect = 'not_delivered'; r.completedAt = now();
+      await this.save(job);
+      throw Object.assign(new Error('Claude runtime closed before the reserved turn was delivered'), {threadId: r.threadId});
+    };
+    if (this.closed) return rejectClosed();
     // Await application persistence of engine and session identity before the effect boundary.
     await job.onEvent?.({method: 'reel/thread-ready', params: {threadId: r.threadId, turnId: r.turnId, nativeSessionId: r.threadId, engine: 'claude', runtimeKind: 'claude', model: r.model, modelProvider: 'anthropic', effort: r.effort, cwd: r.cwd, permissions: permissions()}});
+    if (this.closed) return rejectClosed();
     r.effect = 'possibly_delivered'; await this.save(job);
+    if (this.closed) return rejectClosed();
     // Ignore project/user settings for this invocation: they can inject API-key helpers,
     // endpoints, paid-provider env or hooks. Official subscription sign-in is independent.
     const args = ['--setting-sources', '', '--print', '--output-format', 'stream-json', '--verbose', '--model', r.model, '--effort', r.effort, '--permission-mode', 'bypassPermissions', ...(resume ? ['--resume', r.threadId] : ['--session-id', r.threadId])];
@@ -219,6 +250,7 @@ export class ClaudeRuntime {
 
   async reconcile(threadId, options = {}) {
     const job = await this.load(threadId, options?.cwd); await job.chain;
+    if (!job.child && !job.resuming) job.receipt = await this.readReceipt(threadId, job.receipt.cwd);
     const r = job.receipt, attached = Boolean(job.child);
     const status = TERMINAL.has(r.status) ? r.status : attached ? r.status : 'uncertain';
     return {threadId, engine: 'claude', runtimeKind: 'claude', nativeSessionId: r.nativeSessionId, nativeTurnId: r.nativeTurnId || null, model: r.model, nativeModel: r.nativeModel || null, modelProvider: 'anthropic', effort: r.effort, status: {type: status}, latestTurn: {id: r.turnId, status, startedAt: r.startedAt, completedAt: r.completedAt || null, error: status === 'failed' ? {message: 'Claude execution failed'} : null}, effect: r.effect, readOnly: true, evidence: 'owned-local-cli-receipt', attached, verifiedAt: now()};
@@ -237,12 +269,22 @@ export class ClaudeRuntime {
     this.validate({...options, model: options.model || job.receipt.model, effort: options.effort || job.receipt.effort});
     if (options.model && options.model !== job.receipt.model || options.effort && options.effort !== job.receipt.effort) throw new Error('An existing Claude session retains its original model and effort');
     job.resuming = true;
+    let lock;
     try {
+      // Separate Studio processes can share a home. Reserve this transition on
+      // disk and reject cached terminal state after another adapter advanced it.
+      try { lock = await open(`${job.file}.resume-lock`, 'wx', 0o600); }
+      catch (error) { if (error.code === 'EEXIST') throw new Error('Claude cannot steer an active or uncertain resume; reconcile the original job first'); throw error; }
+      const current = await this.readReceipt(threadId, job.receipt.cwd);
+      if (current.turnId !== job.receipt.turnId || !TERMINAL.has(current.status)) throw new Error('Claude job receipt changed; reconcile the original job before resuming');
       const catalog = await this.catalog(); if (!catalog.availability.available) throw new Error(catalog.availability.reason);
       job.receipt.previousTurnId = job.receipt.turnId; job.receipt.turnId = randomUUID(); job.receipt.status = 'starting'; job.receipt.effect = 'not_delivered'; delete job.receipt.completedAt; delete job.receipt.nativeTurnId;
       job.onEvent = options.onEvent || job.onEvent; await this.save(job);
       return await this.launch(job, options.prompt, true);
-    } finally { job.resuming = false; }
+    } finally {
+      if (lock) { await lock.close(); await unlink(`${job.file}.resume-lock`); }
+      job.resuming = false;
+    }
   }
 
   async close() {
