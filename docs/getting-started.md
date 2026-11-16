@@ -6,7 +6,7 @@ Reel Studio is beta software. Use a separate test workspace and test data while 
 
 - Node.js 22 or later and npm.
 - FFmpeg and `ffprobe` available on your `PATH`.
-- For generation, a Codex CLI that supports `codex app-server --stdio`, authenticated on the execution host. `CODEX_BIN` can select a non-default executable.
+- For generation, your own authenticated official Codex CLI (supporting `codex app-server --stdio`) or Claude Code CLI on the execution host. `CODEX_BIN` or `CLAUDE_BIN` can select the executor executable.
 - Python 3 for the bundled editable examples. Their rendering dependencies are described in each example.
 - Credentials only for the integrations you choose. See [configuration](configuration.md).
 
@@ -52,6 +52,22 @@ bb plugin install ./bb
 ```
 
 The public adapter is not a drop-in replacement for an existing private installation. Preserve existing libraries and integrations; installing does not migrate their configuration or data. Host installation and appearance can vary with the host version. Review [host compatibility](hosts.md) before installing and [configuration](configuration.md) before enabling real work.
+
+## Set up your first project
+
+1. Open Studio in Codex or BB and open **Settings**. Choose the execution engine, complete its official sign-in on the execution host, then check readiness.
+2. Connect only the optional services you need using the protected setup buttons. Credentials go into those local pages, not chat messages or source files. Read the [provider and cost guide](provider-setup.md) before generating narration or requesting research.
+3. Start from an editable template, write a brief and add media you have the right to use. Supplied graphics and footage do not require an image-generation account. Review the chosen template's dependencies.
+4. If you need Azure narration, generate and listen to the full script, then attach its completed audio to the project before starting production.
+5. Review the generated film and its publication copy. Approve the exact version and destination before an explicit publish action, or export for manual publication. Verify the actual destination afterward.
+
+Readiness checks report individual tools or connection reads. They do not prove visual quality, a complete production run, or social publication. The preview disables effectful production and publication actions; use an isolated installed library to evaluate those workflows.
+
+## Update deliberately
+
+Use a reviewed tagged release from [GitHub Releases](https://github.com/offflinerpsy/reel-studio/releases). Read its notes and preserve your Studio data directory, private connection files, host launch configuration and any local source edits before changing installed code. The data directory is separate from the repository and release package; do not copy it into a contribution or public archive.
+
+Stop or reconcile active and uncertain work first. Install or rebuild the matching Studio and BB packages using the host's supported update mechanism, then reconnect and check the reported version, data path and optional connections. Test with a separate library before opening important production data. There is no background self-updater, automatic production migration or automatic adoption of a pull request. Installing the public core does not migrate an independently configured private production system.
 
 ## Build and synchronize
 

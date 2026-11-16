@@ -33,8 +33,18 @@ test('settings operations remain separate from snapshots and do not unpause or m
  const home=fixture(t),app=await createStudio({home,paused:true,runtime:{close:async()=>{}}});t.after(()=>app.close());const before=app.store.read();
  const save=await app.invoke('reel_settings_save',{config:local(home)});assert.notEqual(save.isError,true);assert.equal(save.structuredContent.snapshot,undefined);assert.equal(save.structuredContent.settings.active.home,home);
  const setup=await app.invoke('reel_settings_export');assert.equal(setup.structuredContent.setup.applied,false);assert.equal(setup.structuredContent.snapshot,undefined);
- const read=await app.invoke('reel_settings_read');assert.deepEqual(read.structuredContent.settings.config,local(home));assert.equal(app.snapshot().settings,undefined);assert.equal(app.snapshot().paused,true);assert.deepEqual(app.store.read(),before);
+ const read=await app.invoke('reel_settings_read');assert.deepEqual(read.structuredContent.settings.config,{...local(home),engine:'codex'});assert.equal(app.snapshot().settings,undefined);assert.equal(app.snapshot().paused,true);assert.deepEqual(app.store.read(),before);
  const bad=await app.invoke('reel_settings_save',{config:{...local(home),token:'super-secret'}});assert.equal(bad.isError,true);assert.equal(JSON.stringify(bad).includes('super-secret'),false);
+});
+
+test('engine selection persists across restart and unrelated installation saves',t=>{
+ const home=fixture(t),s=installationSettings({home,pluginRoot:'/opt/plugin',runtimeLabel:'local'});
+ assert.equal(s.read().config.engine,'codex');
+ s.save({...local(home),mode:'ssh',remote});s.setEngine('claude');
+ const restored=installationSettings({home,pluginRoot:'/other',runtimeLabel:'remote'});
+ assert.equal(restored.read().config.engine,'claude');assert.deepEqual(restored.read().config.remote,remote);
+ restored.save({...local(home),mode:'ssh',remote});assert.equal(restored.read().config.engine,'claude');
+ assert.throws(()=>restored.setEngine('other'));assert.equal(restored.read().config.engine,'claude');
 });
 
 test('speech media uses only the owning Studio home, including the environment override',async t=>{

@@ -16,6 +16,18 @@ function errorText(error:unknown){
  if(value.includes('DESTINATION'))return 'The selected chat or its computer is unavailable or has changed. Refresh the choices and select it again.';
  return value;
 }
+export function openProtectedSetupLink(value:string,openUrl:(url:string)=>boolean){
+ // This is the only external-link capability granted to the embedded Studio.
+ // Keep the literal loopback host: URL parsing alone normalizes alternate IPs.
+ const match=typeof value==='string'?value.match(/^http:\/\/127\.0\.0\.1:([1-9]\d{0,4})\/setup\/(?:runtime|azure|dataforseo|telegram|youtube)\?key=[A-Za-z0-9_-]{24,256}$/):null;
+ if(!match||Number(match[1])>65535)return {isError:true};
+ try{
+  const url=new URL(value);
+  if(url.username||url.password||url.hash)return {isError:true};
+  // SDK true means the client's URL handler accepted it, not that a page loaded.
+  return {isError:!openUrl(value)};
+ }catch{return {isError:true};}
+}
 function Sidebar({subPath}:PluginNavPanelProps){
  const navigate=useBbNavigate();
  return <aside className="reel-studio-sidebar" aria-label="Reel Studio"><strong>Reel Studio</strong><nav aria-label="Studio sections">
@@ -24,7 +36,8 @@ function Sidebar({subPath}:PluginNavPanelProps){
  </nav></aside>;
 }
 function ReelStudio({subPath}:PluginNavPanelProps){
- const rpc=useRpc<typeof rpcContract>(),sdk=useSdk(),context=useBbContext(),theme=experimental_useCodeTheme();
+ const rpc=useRpc<typeof rpcContract>(),sdk=useSdk(),context=useBbContext(),theme=experimental_useCodeTheme(),navigate=useBbNavigate();
+ const navigateRef=useRef(navigate);navigateRef.current=navigate;
  const rpcRef=useRef(rpc);rpcRef.current=rpc;
  const themeRef=useRef(theme.mode);themeRef.current=theme.mode;
  const frame=useRef<HTMLIFrameElement>(null),bridgeRef=useRef<AppBridge|null>(null),binding=useRef<Binding|null>(null),session=useRef(crypto.randomUUID());
@@ -108,13 +121,14 @@ function ReelStudio({subPath}:PluginNavPanelProps){
   const connect=async()=>{try{
    const workspace=await rpcRef.current.call('workspace',null);if(disposed)return;
    const target=frame.current?.contentWindow;if(!target)throw new Error('Workspace is unavailable.');
-   bridge=new AppBridge(null,{name:'Reel Studio in BB',version:'0.3.1'},{serverTools:{},serverResources:{},message:{text:{}},updateModelContext:{text:{},structuredContent:{}}},{hostContext:{theme:themeRef.current,displayMode:'fullscreen',availableDisplayModes:['fullscreen'],platform:'web',locale:'en'}});bridgeRef.current=bridge;
+   bridge=new AppBridge(null,{name:'Reel Studio in BB',version:'0.3.1'},{openLinks:{},serverTools:{},serverResources:{},message:{text:{}},updateModelContext:{text:{},structuredContent:{}}},{hostContext:{theme:themeRef.current,displayMode:'fullscreen',availableDisplayModes:['fullscreen'],platform:'web',locale:'en'}});bridgeRef.current=bridge;
    bridge.oncalltool=async params=>{
     if(disposed||released)throw new Error('Panel closed.');
     try{return await rpcRef.current.call('callTool',{name:params.name,arguments:params.arguments,...(binding.current?{binding:binding.current}:{})}) as CallToolResult;}
     catch(e){const message=errorText(e);return {isError:true,structuredContent:{error:message},content:[{type:'text',text:message}]};}
    };
    bridge.onreadresource=params=>rpcRef.current.call('readMedia',{uri:params.uri});
+   bridge.onopenlink=async({url})=>disposed||released?{isError:true}:openProtectedSetupLink(url,value=>navigateRef.current.openUrl(value));
    bridge.onmessage=async message=>{
     if(disposed||released)throw new Error('Panel closed.');
     if(!binding.current)return {isError:true,error:'Choose a main chat in Main chat settings first. Selecting a chat sends nothing.'};

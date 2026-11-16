@@ -43,7 +43,15 @@ function hostSpeechConfig(env) {
   try { const value = JSON.parse(readFileSync(path, 'utf8')); return value && typeof value === 'object' && !Array.isArray(value) ? value : {}; } catch { throw new Error('Invalid host-local Reel Studio Speech config'); }
 }
 
-export function azureSpeechConfig(env = process.env) {
+export function azureSpeechConfig(env = process.env, credentials) {
+  // An explicit connection is authoritative: never borrow another host/account's
+  // environment or Azure CLI session when the caller selected its own keys.
+  if (credentials !== undefined) {
+    const c = credentials || {};
+    const key = typeof c.key === 'string' ? c.key : '';
+    const token = typeof c.token === 'string' ? c.token : '';
+    return { configured: Boolean(key || token), authMode: key ? 'subscription_key' : token ? 'entra_token' : 'none', region: regionId(c.region || DEFAULT_REGION), key: key || null, token: token || null, resourceId: c.resourceId || null, endpoint: c.endpoint || null, subscriptionId: c.subscriptionId || null, tenantId: c.tenantId || null };
+  }
   const host = hostSpeechConfig(env);
   const key = env.AZURE_SPEECH_KEY || env.AZURE_COGNITIVE_SERVICES_KEY || '';
   const cli = env.AZURE_SPEECH_USE_AZURE_CLI === '1' || host.auth === 'azure_cli';
@@ -74,8 +82,8 @@ async function azureCliToken(config, execFileImpl = execFile) {
   return token.accessToken;
 }
 
-async function resolveCredential({ env = process.env, fetchImpl = fetch, execFileImpl = execFile } = {}) {
-  const config = azureSpeechConfig(env);
+async function resolveCredential({ env = process.env, credentials, fetchImpl = fetch, execFileImpl = execFile } = {}) {
+  const config = azureSpeechConfig(env, credentials);
   if (!config.configured) return { ...config, credential: null };
   if (config.key) return { ...config, credential: { mode: 'subscription_key', value: config.key } };
   if (config.token) return { ...config, credential: { mode: 'entra_token', value: config.token } };
@@ -132,8 +140,8 @@ async function responseError(response) {
 }
 
 /** Return the provider's current voice catalog. Credentials never appear in the result. */
-export async function listAzureSpeechVoices({ env = process.env, fetchImpl = fetch, execFileImpl = execFile } = {}) {
-  const config = await resolveCredential({ env, fetchImpl, execFileImpl });
+export async function listAzureSpeechVoices({ env = process.env, credentials, fetchImpl = fetch, execFileImpl = execFile } = {}) {
+  const config = await resolveCredential({ env, credentials, fetchImpl, execFileImpl });
   if (!config.configured) return { configured: false, provider: AZURE_SPEECH_MODEL.provider, voices: [], region: config.region };
   const url = speechUrl(config, 'voices/list');
   const response = await fetchImpl(url, {
@@ -158,10 +166,10 @@ function ssml({ provider, text, voice, locale, rate, pitch, style }) {
 }
 
 /** Synthesize one deterministic request. The caller owns the output path and no-replay policy. */
-export async function synthesizeAzureSpeech({ text, voice = DEFAULT_VOICE, locale = 'en-US', rate, pitch, style, voiceType, route = 'standard', env = process.env, fetchImpl = fetch, execFileImpl = execFile } = {}) {
+export async function synthesizeAzureSpeech({ text, voice = DEFAULT_VOICE, locale = 'en-US', rate, pitch, style, voiceType, route = 'standard', env = process.env, credentials, fetchImpl = fetch, execFileImpl = execFile } = {}) {
   if (typeof text !== 'string' || !text.trim() || text.length > MAX_TEXT) throw new TypeError(`Text must be 1-${MAX_TEXT} characters`);
   const model = speechModel({ route, voice, voiceType, rate, pitch, style });
-  const config = await resolveCredential({ env, fetchImpl, execFileImpl });
+  const config = await resolveCredential({ env, credentials, fetchImpl, execFileImpl });
   if (!config.configured) throw new Error('Azure Speech is not configured on this host');
   const input = { provider: model.id, resourceIdentity: resourceIdentity(config), region: config.region, voice: voiceId(voice, route), locale: localeId(locale), text, rate: rateValue(rate), pitch: pitchValue(pitch), style: styleValue(style), outputFormat: model.outputFormat };
   const id = requestId(input);
@@ -197,10 +205,10 @@ export function parsePcmWav(audio) {
  * SDK synthesis captures real word-boundary events in the same synthesis call.
  * It is opt-in so the REST route remains available as an explicit no-timing fallback.
  */
-export async function synthesizeAzureSpeechSdk({ text, voice = DEFAULT_VOICE, locale = 'en-US', rate, pitch, style, voiceType, route = 'standard', env = process.env, execFileImpl = execFile } = {}) {
+export async function synthesizeAzureSpeechSdk({ text, voice = DEFAULT_VOICE, locale = 'en-US', rate, pitch, style, voiceType, route = 'standard', env = process.env, credentials, fetchImpl = fetch, execFileImpl = execFile } = {}) {
   if (typeof text !== 'string' || !text.trim() || text.length > MAX_TEXT) throw new TypeError(`Text must be 1-${MAX_TEXT} characters`);
   const model = speechModel({ route, voice, voiceType, rate, pitch, style });
-  const config = await resolveCredential({ env, execFileImpl }); if (!config.configured) throw new Error('Azure Speech is not configured on this host');
+  const config = await resolveCredential({ env, credentials, fetchImpl, execFileImpl }); if (!config.configured) throw new Error('Azure Speech is not configured on this host');
   const input = { provider: model.id, resourceIdentity: resourceIdentity(config), region: config.region, voice: voiceId(voice, route), locale: localeId(locale), text, rate: rateValue(rate), pitch: pitchValue(pitch), style: styleValue(style), outputFormat: model.outputFormat };
   const id = requestId(input); const speech = config.credential.mode === 'subscription_key' ? speechSdk.SpeechConfig.fromSubscription(config.credential.value, config.region) : speechSdk.SpeechConfig.fromEndpoint(new URL(resourceEndpoint(config, '/')), { getToken: async () => ({ token: config.credential.value, expiresOnTimestamp: Date.now() + 300000 }) }); speech.speechSynthesisOutputFormat = speechSdk.SpeechSynthesisOutputFormat.Riff24Khz16BitMonoPcm; speech.voiceName = input.voice;
   const synthesizer = new speechSdk.SpeechSynthesizer(speech); const wordTimings = [];
@@ -215,7 +223,7 @@ export async function synthesizeAzureSpeechSdk({ text, voice = DEFAULT_VOICE, lo
 export async function synthesizeAzureSpeechOnce({ receiptDir, outputDir, mode = 'sdk', ...request }) {
   if (typeof receiptDir !== 'string' || typeof outputDir !== 'string') throw new TypeError('receiptDir and outputDir are required');
   if (!['sdk', 'rest'].includes(mode)) throw new TypeError('Invalid Azure Speech synthesis mode');
-  const env = request.env || process.env; const config = azureSpeechConfig(env); const model = speechModel({ ...request, voice: request.voice || DEFAULT_VOICE }); const input = { provider: model.id, mode, resourceIdentity: resourceIdentity(config), region: config.region, voice: voiceId(request.voice || DEFAULT_VOICE, request.route), locale: localeId(request.locale || 'en-US'), text: request.text, rate: rateValue(request.rate), pitch: pitchValue(request.pitch), style: styleValue(request.style), outputFormat: model.outputFormat }; const id = requestId(input);
+  const env = request.env || process.env; const config = azureSpeechConfig(env, request.credentials); const model = speechModel({ ...request, voice: request.voice || DEFAULT_VOICE }); const input = { provider: model.id, mode, resourceIdentity: resourceIdentity(config), region: config.region, voice: voiceId(request.voice || DEFAULT_VOICE, request.route), locale: localeId(request.locale || 'en-US'), text: request.text, rate: rateValue(request.rate), pitch: pitchValue(request.pitch), style: styleValue(request.style), outputFormat: model.outputFormat }; const id = requestId(input);
   await mkdir(receiptDir, { recursive: true }); await mkdir(outputDir, { recursive: true }); const receiptPath = join(receiptDir, `${id}.json`); const audioPath = join(outputDir, `${id}.wav`);
   try { const existing = JSON.parse(await readFile(receiptPath, 'utf8')); if (existing.status === 'complete' && existing.audioPath === audioPath) { const cached = await readFile(audioPath); const parsed = parsePcmWav(cached); if (sha256(cached) !== existing.sha256 || cached.length !== existing.bytes || Math.abs(parsed.duration - existing.duration) > 0.000001) throw new Error('Cached Azure Speech artifact failed receipt validation; reconcile before retrying'); return { ...existing, audio: cached }; } throw new Error('Azure Speech request is possibly delivered; reconcile the existing receipt before retrying'); } catch (error) { if (error.code !== 'ENOENT') throw error; }
   let handle; try { handle = await open(receiptPath, 'wx'); await handle.writeFile(JSON.stringify({ status: 'reserved', requestId: id, input, createdAt: new Date().toISOString() })); await handle.close(); } catch (error) { if (handle) await handle.close().catch(() => {}); if (error.code === 'EEXIST') throw new Error('Azure Speech request is possibly delivered; reconcile the existing receipt before retrying'); throw error; }

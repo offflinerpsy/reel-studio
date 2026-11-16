@@ -1,21 +1,21 @@
 # Configuration and integrations
 
-Start with the [local preview](getting-started.md) to inspect the interface. Installation does not connect accounts, migrate a library or provision a remote worker. Configure real work in the environment that starts the Studio server.
+Start with the [local preview](getting-started.md) to inspect the interface. Installation does not connect accounts, migrate a library or provision a remote worker. Open **Settings** for executor selection, protected provider setup and readiness checks. The [provider and cost guide](provider-setup.md) describes this recommended onboarding path. Configure real work on the host that starts the Studio server.
 
 ## Settings
 
-Open **Settings → Deployment** to see the currently serving host, runtime, data folder and plugin folder. These active facts are separate from the preferences for your next launch.
+Open **Settings → Advanced installation settings → Deployment** to see the currently serving host, runtime, data folder and plugin folder. These active facts are separate from the preferences for your next launch.
 
 1. Choose **Local computer** or **Remote server over SSH**. Enter absolute local data/plugin paths and, for SSH, the existing host alias, remote data/plugin paths and remote Node executable.
 2. Select **Save installation preferences**. Studio saves private preferences in `installation-settings.json` inside the current server's data folder. Saving does not move projects, change this connection, sign in or start a worker.
 3. Select **Prepare setup commands**. Studio returns a launch command and, for SSH, creates private `installation-setup/remote.json` on the server currently serving Studio.
 4. Apply the generated launch environment in your host's MCP configuration, then reconnect Reel Studio. If the setup JSON was created on a remote server, copy it privately to the client and adjust `REEL_REMOTE_CONFIG` to its absolute client path. Local paths must refer to that client.
 
-Preferences and exported JSON contain installation references, not raw tokens. The Telegram destination field prepares an exact target reference; it does not set environment variables. Configure credentials securely in the environment of the server that performs the action. The SSH relay passes the selected remote data folder to the remote server and does not transfer credentials from your client.
+Preferences and exported JSON contain installation references, not raw tokens. The advanced Telegram destination field prepares an exact launch reference; use **Publishing connections** to save and verify the running server's bot credentials. The SSH relay passes the selected remote data folder to the remote server and does not transfer credentials from your client.
 
 ## Local execution
 
-The default runtime starts `codex app-server --stdio` on the same host as the server. It uses that host's existing Codex authentication. Set `CODEX_BIN` to an executable path if Codex is not available on `PATH` or in `~/.local/bin/codex`.
+The selected executor runs on the same host as the Studio server. Codex starts `codex app-server --stdio` with that host's ChatGPT authentication. Claude uses the unmodified official Claude Code CLI and your own subscription. Select the engine in Settings; existing jobs keep their original engine. Set `CODEX_BIN` or `CLAUDE_BIN` to an executable path when needed. The protected login actions require the corresponding official command to be available as `codex` or `claude` on the server's `PATH`; otherwise sign in directly with the selected executable.
 
 The default Studio library is `~/.local/share/reel-studio`. The BB adapter defaults to `~/.local/share/reel-studio-bb`. Set `REEL_STUDIO_HOME` on the server process to select a different library. Use a new directory for evaluation: an existing directory can contain projects, account bindings, paused producers and uncertain publication attempts. The preview command selects a temporary directory for you.
 
@@ -33,7 +33,7 @@ The SSH relay is an advanced, explicitly configured route. It is not required fo
 | `localPlugin` | Optional local Studio package path; defaults to the running package. |
 | `codexBinary` | Optional absolute Codex executable path for the local worker. |
 
-The relay keeps the interface local while tools and media use Studio on the remote Linux server. It requires existing SSH access and compatible builds on both ends. A separately started Mac worker is needed only for jobs routed back to the Mac; configuring the relay does not start that worker. Paths on the remote server must be normalized POSIX paths using letters, digits, underscores, periods, hyphens and slashes. The configuration parser rejects unknown fields. Credentials are not copied between hosts. A missing or unhealthy route stops work; it does not silently start the job elsewhere. Existing jobs retain their original route.
+The relay keeps the interface local while tools and media use Studio on the remote Linux server. It requires existing SSH access and compatible builds on both ends. The executor and optional service credentials must be configured on that remote execution host. Protected setup links use an owned SSH loopback forward so your client browser can reach the remote setup page; credentials remain on the server. A separately started Mac worker is needed only for jobs routed back to the Mac; configuring the relay does not start that worker. Existing managed compute routes retain their admitted executor and authority; the ordinary engine selector does not migrate them. Paths on the remote server must be normalized POSIX paths using letters, digits, underscores, periods, hyphens and slashes. The configuration parser rejects unknown fields. A missing or unhealthy route stops work; it does not silently start the job elsewhere. Existing jobs retain their original route.
 
 This implementation does not establish general host compatibility. Test your exact topology in an isolated library before using production data. See [host compatibility](hosts.md).
 
@@ -47,18 +47,22 @@ The choice lasts for the panel session. Use **Change main chat** to choose anoth
 
 ## Services and publication
 
-| Service or action | Public implementation | Required configuration and limits |
-| --- | --- | --- |
-| Codex production | Starts jobs through the local or explicitly configured runtime. | Existing Codex authentication and compatible CLI; rendering also needs the selected template's dependencies. |
-| Azure Speech | Reads the voice catalog and creates speech samples using the Azure Speech SDK. | Your Azure Speech resource and credentials. The standard sample route accepts eligible catalog voices; an HD voice does not automatically enable an HD route. |
-| YouTube, TikTok and Instagram | Prepares scoped browser handoffs and records observations/results. | A compatible host with supported browser control and an existing authenticated account. Preparing a handoff does not upload a video. |
-| Telegram | Contains a direct Bot API send action and manual export; browser publishing is not implemented. | Set `REEL_TELEGRAM_BOT_TOKEN` and `REEL_TELEGRAM_CHAT_ID` on the server process, then reconnect. The requested target must match exactly, and the bot needs permission to post. Verify the destination after a send. |
-| Export | Packages a selected version and its platform copy. | An export does not publish or authenticate an account. |
+See the [capability and cost matrix](provider-setup.md#capability-and-cost-matrix) for supported account connections and their limits. Protected setup pages are the primary path for Azure Speech, DataForSEO, Telegram and YouTube Desktop OAuth. Saved credentials are private plaintext files with restricted permissions, not encrypted or keychain storage. A provider or voice name in a production profile is recipe data, not connection evidence.
 
-YouTube and Instagram API helper code is included, but a bundled OAuth flow and an end-to-end API publishing setup are not provided. There is no built-in HeyGen or ElevenLabs account setup. A provider or voice name saved in a production profile is recipe data, not evidence that the service is connected.
+YouTube OAuth provides channel authorization and identity checks. Resumable-upload helpers exist in source, but the panel does not provide a complete API upload workflow. Instagram API primitives also exist without bundled Instagram OAuth onboarding. YouTube, TikTok and Instagram browser handoffs require a compatible host and an existing account session on the computer performing publication. Manual export remains available. Preparing a handoff does not upload a video.
 
-Use **Settings → YouTube and Telegram setup** for the current setup guidance, then add the exact destination in Connections. YouTube supports an existing browser session or **Export only**; verify or sign in on the computer that will operate the browser. Telegram shows credential presence and the active environment target without exposing the token. Credential presence does not verify access or delivery.
+After any uncertain external action, reconcile the same attempt and destination before retrying. A stored approval, a dispatched prompt and a successful HTTP response describe different stages; destination readback establishes the publication result.
 
-For Azure Speech, the simplest environment configuration uses `AZURE_SPEECH_KEY` and `AZURE_SPEECH_REGION`. The implementation also accepts an Entra token (`AZURE_SPEECH_AAD_TOKEN`), Azure CLI authentication (`AZURE_SPEECH_USE_AZURE_CLI=1`), or managed identity (`AZURE_SPEECH_USE_MANAGED_IDENTITY=1`) where supported by your resource and host. A host-local configuration file can be selected with `AZURE_SPEECH_CONFIG_PATH`; its default is `~/.config/reel-studio-speech.json`. Resource identity and access must match your selected authentication method. Speech generation can incur Azure charges under your account.
+## Advanced provider configuration
 
-Keep secrets in host configuration, outside Git, screenshots and issue reports. After any uncertain external action, reconcile the same attempt and destination before retrying. A stored approval, a dispatched prompt and a successful HTTP response each describe different stages; only destination readback establishes the actual publication result.
+Existing server environment configuration remains supported. Saved protected-page credentials take precedence for that service; removing them can reveal environment fallback. Keep secrets outside Git, screenshots and issue reports.
+
+| Service | Environment fallback |
+| --- | --- |
+| Azure Speech key | `AZURE_SPEECH_KEY` or `AZURE_COGNITIVE_SERVICES_KEY`, with `AZURE_SPEECH_REGION` |
+| DataForSEO | `DATAFORSEO_LOGIN` / `DATAFORSEO_API_LOGIN` and `DATAFORSEO_PASSWORD` / `DATAFORSEO_API_PASSWORD` |
+| Telegram | `REEL_TELEGRAM_BOT_TOKEN` and `REEL_TELEGRAM_CHAT_ID` |
+
+Azure also supports an Entra token (`AZURE_SPEECH_AAD_TOKEN`), Azure CLI authentication (`AZURE_SPEECH_USE_AZURE_CLI=1`), or managed identity (`AZURE_SPEECH_USE_MANAGED_IDENTITY=1`) where supported by the resource and host. A host-local configuration file can be selected with `AZURE_SPEECH_CONFIG_PATH`; its default is `~/.config/reel-studio-speech.json`. Resource identity and access must match the chosen authentication method. Explicit invalid saved credentials do not borrow a different host identity.
+
+The narration UI uses eligible standard Azure voices; a catalog HD voice does not automatically enable an HD route. The backend has an explicit DragonHD route with separate control validation. SDK narration can retain word timings; the REST route does not fabricate timings. Listen to the saved audio and review its timing in the film before approval.

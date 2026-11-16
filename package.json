@@ -1,6 +1,6 @@
 {
   "name": "reel-studio-workspace",
-  "version": "0.3.1",
+  "version": "0.4.0",
   "private": true,
   "type": "module",
   "engines": {
@@ -9,6 +9,7 @@
   "scripts": {
     "setup": "node scripts/setup.mjs",
     "build": "node scripts/build.mjs",
+    "capabilities": "node packages/studio/scripts/update-capabilities.mjs",
     "test": "node scripts/test.mjs",
     "package": "node scripts/package.mjs",
     "smoke:package": "node scripts/smoke-package.mjs",

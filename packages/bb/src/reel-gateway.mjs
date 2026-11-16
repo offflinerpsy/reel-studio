@@ -23,6 +23,8 @@ export const UI_TOOLS=Object.freeze([
   'reel_release_plan_dispatch_record','reel_research_check','reel_speech_catalog',
   'reel_speech_sample','reel_state','reel_targets','reel_template','reel_upload',
   'reel_settings_read','reel_settings_save','reel_settings_export',
+  'reel_setup_read','reel_setup_check','reel_setup_engine',
+  'reel_narration_create','reel_narration_read','reel_narration_list','reel_narration_assign',
 ]);
 const workerTools=Object.freeze(['reel_state','reel_publication_job','reel_release_plan','reel_connection_record','reel_publication_result','reel_release_plan_result']);
 export const HOST_HANDOFF_TOOLS=new Set(['reel_browser_prepare','reel_dispatch_record','reel_account_verify_prepare','reel_release_plan_dispatch_prepare','reel_release_plan_dispatch_record']);

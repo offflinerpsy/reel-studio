@@ -41,6 +41,14 @@ plugin process; saving them does not switch an existing connection.
 
 ## Main chat
 
+The shared **Settings** screen selects your own Codex or Claude Code executor for
+new jobs and opens protected setup pages for optional services. BB is the panel
+host; choosing Claude Code does not change the host or configure another chat.
+Credentials are entered outside the panel and stored on the execution host with
+private filesystem permissions, not encryption or an OS keychain. See the
+[provider and cost guide](https://github.com/offflinerpsy/reel-studio/blob/main/docs/provider-setup.md) for connection capabilities,
+separate charges and the limits of YouTube OAuth and upload helpers.
+
 Open **Main chat** settings and choose **Computer or server → Project → Main chat**.
 The destination must be an existing Codex chat on a connected, active BB host,
 with a ready workspace inside that project's source path on the same host.

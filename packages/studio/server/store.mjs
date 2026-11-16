@@ -1,4 +1,4 @@
-import {mkdirSync,readFileSync,writeFileSync,renameSync,rmSync,existsSync,copyFileSync,statSync,realpathSync,openSync,fstatSync,closeSync,constants} from 'node:fs';
+import {mkdirSync,readFileSync,writeFileSync,renameSync,rmSync,existsSync,copyFileSync,statSync,lstatSync,realpathSync,openSync,fstatSync,closeSync,constants} from 'node:fs';
 import {join,resolve,extname,sep} from 'node:path';
 import {randomUUID,createHash} from 'node:crypto';
 import {DEFAULT_EXAMPLE_PROFILE,validateProductionProfile,validatePublicationCopy} from './production-profiles.mjs';
@@ -6,6 +6,7 @@ import {buildReleasePlan,validateScheduleEvidence,recordPublicEvidence} from './
 import {ensureLines,lineForProject,assertLineActive,lineMethods,assertExecution} from './production-lines.mjs';
 import {assertAdmission,assertOwner,ownerTuple,authorityHash,fingerprint,uuid,validateBBRuntime} from './owner-authority.mjs';
 import {externalJobMethods} from './external-jobs.mjs';
+import {parsePcmWav} from './speech-providers.mjs';
 
 export const digest=x=>createHash('sha256').update(typeof x==='string'||Buffer.isBuffer(x)?x:JSON.stringify(x)).digest('hex');
 const now=()=>new Date().toISOString();
@@ -59,6 +60,26 @@ export const seedTemplates=[
 ];
 const checkpointJob=j=>j?.status==='dependency_checkpoint'||j?.outcome?.schema==='reel-native-job-outcome/v1';
 const assertMutableJob=j=>{if(checkpointJob(j))throw new Error('This dependency checkpoint job is terminal; a separately supported continuation is required.');};
+function narrationFile(home,directory,name,path,maxBytes){
+ if(typeof path!=='string'||path!==join(home,directory,name))throw new Error('Narration files must use the exact owning Studio folder and receipt filename');
+ const folder=join(home,directory);if(lstatSync(folder).isSymbolicLink()||!lstatSync(folder).isDirectory()||lstatSync(path).isSymbolicLink())throw new Error('Narration files and folders cannot be symlinks');
+ const canonical=join(realpathSync(home),directory,name);if(realpathSync(path)!==canonical)throw new Error('Narration file escaped the owning Studio folder');
+ const fd=openSync(path,constants.O_RDONLY|constants.O_NOFOLLOW);
+ try{const st=fstatSync(fd);if(!st.isFile()||st.size<1||st.size>maxBytes)throw new Error('Narration artifact must be a bounded regular file');const bytes=readFileSync(fd);const after=lstatSync(path);if(after.isSymbolicLink()||after.dev!==st.dev||after.ino!==st.ino||realpathSync(path)!==canonical||fstatSync(fd).size!==bytes.length)throw new Error('Narration artifact changed during validation');return bytes;}finally{closeSync(fd);}
+}
+function narrationReference(home,receipt){
+ if(!receipt||typeof receipt!=='object'||Array.isArray(receipt)||receipt.status!=='complete'||receipt.effect!=='independently_verified')throw new Error('Assign only an independently verified completed narration receipt');
+ if(typeof receipt.requestKey!=='string'||!/^[A-Za-z0-9_-]{8,128}$/.test(receipt.requestKey)||typeof receipt.id!=='string'||!/^[a-f0-9]{32}$/.test(receipt.id)||typeof receipt.sha256!=='string'||!/^[a-f0-9]{64}$/.test(receipt.sha256)||receipt.mediaId!==`speech-${receipt.id}`||!Number.isFinite(receipt.duration)||receipt.duration<=0)throw new Error('Narration receipt identity, media or duration is invalid');
+ const file=receipt.file||receipt.audioPath;if(receipt.file&&receipt.audioPath&&receipt.file!==receipt.audioPath)throw new Error('Narration receipt audio paths conflict');
+ const bytes=narrationFile(home,'speech-audio',receipt.id+'.wav',file,128*1024*1024);if(digest(bytes)!==receipt.sha256)throw new Error('Narration audio SHA-256 does not match its receipt');
+ if(Math.abs(parsePcmWav(bytes).duration-receipt.duration)>0.000001)throw new Error('Narration audio duration does not match its receipt');
+ const timingsPath=receipt.timingsPath||receipt.wordTimingsPath;if(receipt.timingsPath&&receipt.wordTimingsPath&&receipt.timingsPath!==receipt.wordTimingsPath)throw new Error('Narration receipt timing paths conflict');
+ let timingsSha256;
+ if(timingsPath){const timingBytes=narrationFile(home,'narration',receipt.id+'.words.json',timingsPath,4*1024*1024);timingsSha256=digest(timingBytes);if(receipt.timingsSha256&&receipt.timingsSha256!==timingsSha256)throw new Error('Narration word timing SHA-256 does not match');const timings=JSON.parse(timingBytes.toString('utf8'));if(timings.unit!=='milliseconds'||!Array.isArray(timings.words)||!timings.words.length||timings.words.some(w=>typeof w?.text!=='string'||!Number.isFinite(w.offset)||w.offset<0||!Number.isFinite(w.duration)||w.duration<0||w.offset+w.duration>receipt.duration*1000+100))throw new Error('Narration word timings are invalid');}
+ if(receipt.hasWordTimings&&!timingsPath)throw new Error('Narration receipt is missing its word timing artifact');
+ return {requestKey:receipt.requestKey,id:receipt.id,status:'complete',effect:'independently_verified',sha256:receipt.sha256,file,duration:receipt.duration,bytes:bytes.length,mediaId:receipt.mediaId,...(timingsPath?{timingsPath,timingsSha256}: {})};
+}
+const publicNarration=reference=>{if(!reference)return reference;const {file,audioPath,timingsPath,wordTimingsPath,...safe}=reference;return safe;};
 export class StudioStore{
  constructor(home,{authorityVerifier,requireExisting=false}={}){this.authorityVerifier=authorityVerifier;this.requireExisting=requireExisting;this.home=resolve(home);this.path=join(this.home,'state.json');if(requireExisting){this.read();return;}mkdirSync(this.home,{recursive:true,mode:0o700});for(const x of ['jobs','media','exports'])mkdirSync(join(this.home,x),{recursive:true,mode:0o700});if(!existsSync(this.path))this.tx(s=>s);}
  empty(){return {schema:4,revision:0,productionLines:[],templates:clone(seedTemplates),profiles:[],releasePlans:[],projects:[],attempts:[],connections:{},accounts:[],createdAt:now()};}
@@ -66,6 +87,7 @@ export class StudioStore{
  tx(fn,{readOnly=false}={}){const lock=join(this.home,'.write-lock');try{mkdirSync(lock);}catch{throw new Error('Studio is saving. Refresh before trying again.');}try{const s=this.read();const out=fn(s);if(readOnly)return clone(out);s.revision++;s.updatedAt=now();const tmp=this.path+'.'+randomUUID()+'.tmp';writeFileSync(tmp,JSON.stringify(s,null,2),{mode:0o600});renameSync(tmp,this.path);return clone(out);}finally{rmSync(lock,{recursive:true,force:true});}}
  get(id){const p=this.read().projects.find(p=>p.id===id);if(!p)throw new Error('Project not found');return p;}
  nativeJobRead(id,jobId){const s=this.read(),p=s.projects.find(p=>p.id===id);if(!p)throw new Error('Project not found');return {project:p,job:nativeJobCurrent(s,p,jobId)};}
+ verifyJobNarration(id,jobId){const s=this.read(),p=s.projects.find(p=>p.id===id);if(!p)throw new Error('Project not found');const job=nativeJobCurrent(s,p,jobId);assertMutableJob(job);if(!['starting','running'].includes(job.status))throw new Error('Only an active admitted native job can consume its frozen narration');return job.narration?narrationReference(this.home,job.narration):null;}
  projectAdmission(id,owner,purpose,request){return this.tx(s=>{const p=s.projects.find(p=>p.id===id);if(!p)throw new Error('Project not found');const line=lineForProject(s,p),proof=assertAdmission(this,s,line,owner,purpose,request);return {project:p,line,runtime:proof?.runtime};},{readOnly:true});}
  create(a){return this.tx(s=>{if(s.productionLines.some(l=>(l.managedCreateRetirements||[]).some(r=>r.requestKey===a.requestKey)))throw new Error('This CREATE request key was retired without admission and cannot be reused.');const old=s.projects.find(p=>p.requestKey===a.requestKey);const line=a.productionLineId?s.productionLines.find(l=>l.id===a.productionLineId):old?lineForProject(s,old):null;if(a.productionLineId&&!line)throw new Error('Production direction not found');assertAdmission(this,s,line,a.owner,'line_create_project',a);if(line?.admissionVersion)assertLineActive(line);if(old)return old;const t=line?.recipe.template||s.templates.find(t=>t.id===a.templateId);if(!t)throw new Error('Template not found');const profile=line?.admissionVersion&&a.profileId?s.profiles.find(p=>p.id===a.profileId):line?.recipe.profile||(a.profileId?s.profiles.find(p=>p.id===a.profileId):null);if(a.profileId&&!profile)throw new Error('Profile not found');if(line?.admissionVersion&&(a.expectedLineRevision!==line.revision||profile&&(a.expectedProfileRevision!==profile.revision||s.profiles.find(current=>current.id===profile.id)?.revision!==a.expectedProfileRevision)||!profile&&a.expectedProfileRevision!==undefined))throw new Error('The direction or current production profile changed. Refresh before reserving a project.');if(profile&&(a.model!==profile.model.name||a.effort!==profile.model.effort))throw new Error('Selected model and effort must match the production profile');const p={id:randomUUID(),requestKey:a.requestKey,title:a.title.trim(),idea:a.idea.trim(),template:clone(t),model:a.model,effort:a.effort,duration:a.duration,language:a.language,status:'draft',revision:1,versions:[],uploads:[],jobs:[],createdAt:now(),updatedAt:now(),...(a.computeTarget?{computeTarget:a.computeTarget}:{}),...(profile?{productionProfile:clone(profile),topic:a.topic||a.idea,keyPhrase:a.keyPhrase||a.title}: {}),...(line?{productionLineId:line.id,lineGeneration:line.generation,computeTarget:line.ownerHost,recipeSha256:line.admissionVersion?digest({template:t,profile:profile||null}):line.recipe.sha256,queuePosition:Math.max(0,...s.projects.filter(x=>x.productionLineId===line.id).map(x=>x.queuePosition||0))+1,targets:{[line.channel]:line.connectionId}}:{})};s.projects.push(p);return p;});}
  mutate(id,fn,expected){return this.tx(s=>{const p=s.projects.find(p=>p.id===id);if(!p)throw new Error('Project not found');if(expected!==undefined&&p.revision!==expected)throw new Error('The project changed. Refresh before saving.');const out=fn(p,s);p.revision++;p.updatedAt=now();return out??p;});}
@@ -83,6 +105,7 @@ export class StudioStore{
   }
   const existing=p.jobs.find(j=>j.requestKey===requestKey);
   if(existing){if(Boolean(existing.external)!==Boolean(external)||Boolean(existing.execution)!==Boolean(execution)||external&&existing.external.payloadHash!==payloadHash||execution&&existing.executionPayloadHash!==payloadHash)throw new Error('This job request key belongs to a different payload.');return {...existing,reused:true};}
+  if(a.expectedRevision!==undefined&&a.expectedRevision!==p.revision)throw new Error('The project changed. Refresh before starting a new job.');
   if(p.jobs.some(checkpointJob))throw new Error('This project has a dependency checkpoint; new Generate requests are held until a separately supported continuation.');
   assertLineActive(line);
   if(execution&&(a.expectedRevision!==p.revision||p.productionProfile&&a.expectedProfileRevision!==p.productionProfile.revision||!p.productionProfile&&a.expectedProfileRevision!==undefined))throw new Error('The project or frozen production profile changed. Refresh before admission.');
@@ -90,14 +113,31 @@ export class StudioStore{
   const target=line?.ownerHost||p.computeTarget||p.jobs.at(-1)?.computeTarget||computeTarget;
   // Native and BB both acquire this same project.jobs host slot under tx.
   if(s.projects.some(q=>q.jobs.some(j=>['starting','running','uncertain','cancel_requested'].includes(j.status)&&(q.id===p.id||!target||!j.computeTarget||j.computeTarget===target))))throw new Error('A job is already active on this computer or its host is unknown. Wait for completion or check its status.');
+  const narration=p.narration?narrationReference(this.home,p.narration):null;
   if(target)p.computeTarget=target;
   const source=p.versions.find(v=>v.id===versionId)||p.versions.at(-1),job={id:randomUUID(),requestKey,feedback,kind,status:external?'running':'starting',startedAt:now(),events:[],...(external?{external:{...clone(external),payloadHash,owner:clone(owner),effect:'not_delivered',transitions:[]}}:{ownerPid:process.pid}),...(target?{computeTarget:target}:{}),...(line?{lineId:line.id,lineGeneration:line.generation,lineOwner:ownerTuple(line)}:{}),...(kind==='metadata'&&source?{sourceVersionId:source.id,sourceSha256:source.sha256,sourceMetadataHash:digest(source.metadata),sourceTargetsHash:digest(p.targets||{}),researchInput:research}: {})};
   if(execution)Object.assign(job,{execution:clone(execution),executionPayloadHash:payloadHash,model:execution.model,effort:execution.effort,modelProvider:execution.provider,requestedServiceTier:execution.serviceTier});
+  if(narration)job.narration=clone(narration);
   job.dir=join(this.home,'jobs',job.id);mkdirSync(job.dir,{recursive:true});p.jobs.push(job);p.status='rendering';return job;
  });}
  job(id,jobId,fields){return this.mutate(id,(p,s)=>{const j=p.jobs.find(j=>j.id===jobId);if(!j)throw new Error('Job not found');assertMutableJob(j);const line=lineForProject(s,p);if(j.external)throw new Error('Use the bounded external job result/reconciliation transition.');if(line?.admissionVersion&&j.lineGeneration!==line.generation)throw new Error('This job belongs to a previous production generation.');if(j.execution&&(fields.modelProvider&&fields.modelProvider!==j.execution.provider||fields.model&&fields.model!==j.execution.model||fields.effort&&fields.effort!==j.execution.effort||fields.computeTarget&&fields.computeTarget!==j.execution.host||fields.threadId===j.execution.nativeThreadId||fields.permissions&&(fields.permissions.approvalPolicy!=='never'||fields.permissions.sandbox?.type!=='dangerFullAccess')))throw new Error('Native worker readback did not preserve the admitted execution route.');Object.assign(j,fields);if(fields.status==='completed')delete j.error;if(['failed','interrupted','uncertain'].includes(j.status))p.status=j.status==='uncertain'?'needs_attention':p.versions.length?'review':'failed';return j;});}
  event(id,jobId,event){return this.mutate(id,(p,s)=>{const j=p.jobs.find(j=>j.id===jobId);if(!j)return;assertMutableJob(j);const line=lineForProject(s,p);if(j.external||line?.admissionVersion&&j.lineGeneration!==line.generation)throw new Error('This job cannot advance the current production direction.');p.status='rendering';j.events.push({at:now(),...event});j.events=j.events.slice(-60);return j;});}
  upload(id,{name,data}){const ext=extname(name).toLowerCase();if(!['.png','.jpg','.jpeg','.webp'].includes(ext))throw new Error('Choose a PNG, JPG or WebP image');const b=Buffer.from(data,'base64');if(!b.length||b.length>10*1024*1024)throw new Error('The maximum image size is 10 MB');const valid=ext==='.png'?b.subarray(0,8).equals(Buffer.from([137,80,78,71,13,10,26,10])):ext==='.webp'?b.toString('ascii',0,4)==='RIFF'&&b.toString('ascii',8,12)==='WEBP':b[0]===255&&b[1]===216;if(!valid)throw new Error('File contents do not match its extension');return this.mutate(id,p=>{const a={id:randomUUID(),name:name.split(/[\\/]/).pop(),sha256:digest(b),bytes:b.length};a.path=join(this.home,'media',a.id+ext);writeFileSync(a.path,b,{mode:0o600});p.uploads.push(a);return a;});}
+ assignNarration(id,receipt,expected){return this.mutate(id,(p,s)=>{
+  // Managed directions have an explicit admission protocol. This ordinary
+  // project editor cannot change their producer inputs or bypass that owner.
+  if(p.productionLineId)throw new Error('Assign narration through the managed production direction owner and admission route');
+  if(p.jobs.some(j=>['starting','running','uncertain','cancel_requested'].includes(j.status)||checkpointJob(j)))throw new Error('An active, uncertain or dependency checkpoint job holds this project; reconcile it before changing narration');
+  const reference=receipt===null?null:narrationReference(this.home,receipt);
+  if(reference){for(const project of s.projects)for(const old of [project.narration,...(project.narrationHistory||[])].filter(Boolean))if(old.requestKey===reference.requestKey&&digest(old)!==digest(reference))throw new Error('This narration requestKey belongs to a different immutable receipt payload');}
+  if(digest(p.narration||null)!==digest(reference)){
+   if(p.narration){p.narrationHistory??=[];p.narrationHistory.push(clone(p.narration));}
+   if(reference)p.narration=reference;else delete p.narration;
+   for(const version of p.versions)version.approval=null;
+   p.status=p.versions.length?'review':'draft';
+  }
+  return p;
+ },expected);}
  addVersion(id,jobId,artifact){return this.mutate(id,(p,s)=>{
   const j=p.jobs.find(j=>j.id===jobId);if(!j)throw new Error('Job not found');assertMutableJob(j);
   const line=lineForProject(s,p);if(j.external||line?.admissionVersion&&j.lineGeneration!==line.generation)throw new Error('Import through the current producer owner; this job cannot advance the direction.');
@@ -249,7 +289,7 @@ export class StudioStore{
   return {path:dir,artifacts:artifactManifest,status:'exported_not_published'};
  }
  recover(){return this.tx(s=>{let count=0;for(const p of s.projects)for(const j of p.jobs){if(!j.external&&['starting','running','cancel_requested'].includes(j.status)){let alive=false;try{process.kill(j.ownerPid,0);alive=true;}catch{}if(!alive){j.status='uncertain';p.status='needs_attention';count++;}}}return {count};});}
- public(){const s=this.read(),artifacts=a=>a?{...a,captions:a.captions?.map(({path,...c})=>c),editableSource:a.editableSource?{sha256:a.editableSource.sha256,bytes:a.editableSource.bytes,status:a.editableSource.status}:undefined}:undefined;return {...s,projects:s.projects.map(p=>({...p,uploads:p.uploads.map(({path,...a})=>a),versions:p.versions.map(({path,sourceDir,...v})=>({...v,artifacts:artifacts(v.artifacts),artifactHistory:v.artifactHistory?.map(artifacts)})),jobs:p.jobs.map(({dir,...j})=>j)})),templates:s.templates.map(t=>({...t,reference:t.reference?{projectId:t.reference.projectId,versionId:t.reference.versionId}:null}))};}
+ public(){const s=this.read(),artifacts=a=>a?{...a,captions:a.captions?.map(({path,...c})=>c),editableSource:a.editableSource?{sha256:a.editableSource.sha256,bytes:a.editableSource.bytes,status:a.editableSource.status}:undefined}:undefined;return {...s,projects:s.projects.map(p=>({...p,...(p.narration?{narration:publicNarration(p.narration)}:{}),...(p.narrationHistory?{narrationHistory:p.narrationHistory.map(publicNarration)}:{}),uploads:p.uploads.map(({path,...a})=>a),versions:p.versions.map(({path,sourceDir,...v})=>({...v,artifacts:artifacts(v.artifacts),artifactHistory:v.artifactHistory?.map(artifacts)})),jobs:p.jobs.map(({dir,...j})=>({...j,...(j.narration?{narration:publicNarration(j.narration)}:{}),...(j.narrationHistory?{narrationHistory:j.narrationHistory.map(publicNarration)}:{})}))})),templates:s.templates.map(t=>({...t,reference:t.reference?{projectId:t.reference.projectId,versionId:t.reference.versionId}:null}))};}
  lineCreate(a){return lineMethods.create.call(this,a);}
  lineStatus(a){return lineMethods.status.call(this,a);}
  lineHandoffRead(a){return lineMethods.handoffRead.call(this,a);}

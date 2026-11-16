@@ -1,3 +1,16 @@
+export function mediaIdFromSource(source){
+ let url,id;
+ try{
+  url=new URL(source);
+  if(url.username||url.password)throw new Error();
+  if(url.protocol==='reel-media:'&&url.host==='studio')id=decodeURIComponent(url.pathname.slice(1));
+  else if(['http:','https:'].includes(url.protocol)&&url.pathname.startsWith('/media/'))id=decodeURIComponent(url.pathname.slice('/media/'.length));
+  else throw new Error();
+  if(!id||id==='.'||id==='..'||/[\\/\u0000-\u001f\u007f]/.test(id))throw new Error();
+ }catch{throw new Error('Unsupported media source');}
+ return id;
+}
+
 export async function readNativeMedia(read,id,{signal,onProgress}={}){
  const check=()=>{if(signal?.aborted)throw new DOMException('Preview loading cancelled','AbortError');};check();
  const encoded=encodeURIComponent(id);
