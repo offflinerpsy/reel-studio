@@ -8,7 +8,7 @@ Reel Studio — проект Алекса Яроша с открытым исх�
 
 <picture>
   <source media="(prefers-reduced-motion: reduce)" srcset="docs/media/reel-studio-overview.png">
-  <img src="docs/media/reel-studio-demo.gif" alt="Reel Studio: библиотека видео, редактируемые форматы анимации и бриф ролика." width="1080" height="810">
+  <img src="docs/media/reel-studio-demo.gif" alt="Reel Studio: библиотека видео, редактируемые форматы анимации и бриф ролика." width="1080">
 </picture>
 
 [Посмотреть полный тур](docs/media/reel-studio-demo.mp4) · [Открыть статичный обзор](docs/media/reel-studio-overview.png)

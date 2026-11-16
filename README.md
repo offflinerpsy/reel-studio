@@ -1,7 +1,7 @@
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="docs/media/wordmark-dark.svg">
-    <img src="docs/media/wordmark-light.svg" alt="Reel Studio" width="340" height="70">
+    <img src="docs/media/wordmark-light.svg" alt="Reel Studio" width="340">
   </picture>
 </p>
 
@@ -17,12 +17,12 @@
 </p>
 
 <p align="center">
-  <img src="docs/media/project-status.svg" alt="MIT license · Node.js 22 or newer · Public beta" width="316" height="26">
+  <img src="docs/media/project-status.svg" alt="MIT license · Node.js 22 or newer · Public beta" width="316">
 </p>
 
 <picture>
   <source media="(prefers-reduced-motion: reduce)" srcset="docs/media/reel-studio-overview.png">
-  <img src="docs/media/reel-studio-demo.gif" alt="Reel Studio preview: a video library, editable motion formats and a film brief." width="1080" height="810">
+  <img src="docs/media/reel-studio-demo.gif" alt="Reel Studio preview: a video library, editable motion formats and a film brief." width="1080">
 </picture>
 
 <p align="center">
@@ -34,11 +34,11 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/offflinerpsy/reel-studio/releases/tag/v0.4.1"><img src="docs/media/link-download.svg" alt="Download the 0.4.1 beta" width="172" height="42"></a>
+  <a href="https://github.com/offflinerpsy/reel-studio/releases/tag/v0.4.1"><img src="docs/media/link-download.svg" alt="Download the 0.4.1 beta" width="172"></a>
   &nbsp;
-  <a href="#get-started"><img src="docs/media/link-start.svg" alt="Quick start" width="172" height="42"></a>
+  <a href="#get-started"><img src="docs/media/link-start.svg" alt="Quick start" width="172"></a>
   &nbsp;
-  <a href="#start-with-a-format"><img src="docs/media/link-templates.svg" alt="See editable templates" width="172" height="42"></a>
+  <a href="#start-with-a-format"><img src="docs/media/link-templates.svg" alt="See editable templates" width="172"></a>
 </p>
 
 ## Make the workflow your own
