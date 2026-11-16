@@ -11,7 +11,7 @@ Reel Studio ist ein Open-Source-Arbeitsbereich von Alex Yarosh. Ideen, Medien, b
   <img src="docs/media/reel-studio-demo.gif" alt="Reel Studio: Videobibliothek, bearbeitbare Animationsformate und ein Videobriefing." width="1080">
 </picture>
 
-[Vollständigen Rundgang ansehen](docs/media/reel-studio-demo.mp4) · [Statisches Bild ansehen](docs/media/reel-studio-overview.png)
+[Vollständiger Rundgang (MP4)](docs/media/reel-studio-demo.mp4) · [Statisches Bild ansehen](docs/media/reel-studio-overview.png)
 
 Aufnahmen aus einer separaten Testbibliothek mit fiktiven Projekten. Die Vorschau läuft einmal ab; persönliche Videos und verbundene Konten werden nicht verwendet. Oberfläche und technische Dokumentation sind auf Englisch.
 

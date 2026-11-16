@@ -11,7 +11,7 @@ Reel Studio 是 Alex Yarosh 开发的开源短视频工作空间。你可以集�
   <img src="docs/media/reel-studio-demo.gif" alt="Reel Studio 预览：视频库、可编辑动画格式和视频制作需求。" width="1080">
 </picture>
 
-[观看完整演示](docs/media/reel-studio-demo.mp4) · [查看静态图片](docs/media/reel-studio-overview.png)
+[完整演示（MP4）](docs/media/reel-studio-demo.mp4) · [查看静态图片](docs/media/reel-studio-overview.png)
 
 画面来自独立测试库，使用虚构项目。预览只播放一次，不使用个人视频或已连接的账号。产品界面和技术文档使用英语。
 

@@ -26,7 +26,7 @@
 </picture>
 
 <p align="center">
-  <a href="docs/media/reel-studio-demo.mp4">Watch the walkthrough</a> · <a href="docs/media/reel-studio-overview.png">View the static overview</a>
+  <a href="docs/media/reel-studio-demo.mp4">Full walkthrough (MP4)</a> · <a href="docs/media/reel-studio-overview.png">View the static overview</a>
   <br>
   <sub>A short animated tour, captured from the shared Studio preview with fictional projects. The full walkthrough also shows settings and version review.</sub>
   <br>
