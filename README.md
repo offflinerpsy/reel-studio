@@ -1,14 +1,60 @@
-# Reel Studio
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/media/wordmark-dark.svg">
+    <img src="docs/media/wordmark-light.svg" alt="Reel Studio" width="340" height="70">
+  </picture>
+</p>
 
-Reel Studio is an open-source workspace for planning and producing short videos, by Alex Yarosh. Organize drafts, editable templates, immutable video versions, account connections, and approval and publication records in one place.
+<h3 align="center">A video studio inside your coding chat.</h3>
 
-Reel Studio is **beta software**. Version 0.4.0 adds a shared setup interface for Codex and BB, your own Codex or Claude Code executor, and optional voice, research and publishing connections. Host installation, generation and publishing depend on your environment; see [host compatibility](docs/hosts.md). Public documentation and interface text are in English.
+<p align="center">
+  Turn a brief into a short video with editable motion formats.<br>
+  Built for <strong>Codex and BB</strong>. Run with your own <strong>Codex or Claude Code</strong> account.
+</p>
 
-Recommended download: **[0.4.1 beta](https://github.com/offflinerpsy/reel-studio/releases/tag/v0.4.1)**, with fixes from independent security, concurrency and clean-install testing.
+<p align="center">
+  <strong>English</strong> · <a href="README.ru.md">Русский</a> · <a href="README.es.md">Español</a> · <a href="README.de.md">Deutsch</a> · <a href="README.zh-CN.md">简体中文</a>
+</p>
+
+<p align="center">
+  <img src="docs/media/project-status.svg" alt="MIT license · Node.js 22 or newer · Public beta" width="316" height="26">
+</p>
+
+<picture>
+  <source media="(prefers-reduced-motion: reduce)" srcset="docs/media/reel-studio-overview.png">
+  <img src="docs/media/reel-studio-demo.gif" alt="Reel Studio preview: a video library, editable motion formats and a film brief." width="1080" height="810">
+</picture>
+
+<p align="center">
+  <a href="docs/media/reel-studio-demo.mp4">Watch the walkthrough</a> · <a href="docs/media/reel-studio-overview.png">View the static overview</a>
+  <br>
+  <sub>A short animated tour, captured from the shared Studio preview with fictional projects. The full walkthrough also shows settings and version review.</sub>
+  <br>
+  <sub>No personal media or connected provider accounts. The preview plays once; a static alternative is available above.</sub>
+</p>
+
+<p align="center">
+  <a href="https://github.com/offflinerpsy/reel-studio/releases/tag/v0.4.1"><img src="docs/media/link-download.svg" alt="Download the 0.4.1 beta" width="172" height="42"></a>
+  &nbsp;
+  <a href="#get-started"><img src="docs/media/link-start.svg" alt="Quick start" width="172" height="42"></a>
+  &nbsp;
+  <a href="#start-with-a-format"><img src="docs/media/link-templates.svg" alt="See editable templates" width="172" height="42"></a>
+</p>
+
+## Make the workflow your own
+
+Reel Studio brings the working parts of short-video production into one workspace: briefs, reusable formats, narration, video versions, publication copy and export.
+
+- **Motion you can edit.** Build with HTML, GSAP, Three.js, HyperFrames and FFmpeg. Keep working with code and assets; no HeyGen account is required.
+- **Your AI, your tools.** Choose the official Codex or Claude Code CLI on your execution host. Add voice, research and publishing connections when you need them.
+- **Review before release.** Preview versions, attach prepared narration and tie approval to the exact film and publication copy.
+- **A shared panel for Codex and BB.** Use the same Studio interface through the host integration, with appearance adapted to the host theme.
+
+Creators can start with a format and a brief. Developers can extend the templates, providers and host adapters. There is no bundled AI subscription or generation credit.
 
 ## Get started
 
-You need Node.js 22 or later, npm, and FFmpeg with `ffprobe` on your `PATH`. Production jobs use your own authenticated official Codex or Claude Code CLI on the execution host. The editable examples also require Python 3. Keep credentials and personal media outside this repository.
+To explore the interface, install Node.js 22 or later and npm:
 
 ```sh
 git clone https://github.com/offflinerpsy/reel-studio.git
@@ -19,36 +65,53 @@ npm test
 npm run preview
 ```
 
-The local preview uses a temporary library so you can explore the interface without opening an existing production library. It does not verify generation or an external integration. After installing a host integration, open **Settings** to choose an executor and connect optional services through protected setup pages. See [getting started](docs/getting-started.md) and the [provider and cost guide](docs/provider-setup.md).
+The preview opens an isolated library. For production, install FFmpeg with `ffprobe`, authenticate your chosen official CLI, and open **Settings** in the installed panel. Python 3 is needed for the editable examples.
 
-## What you can do
+**[Install in Codex or BB](docs/getting-started.md#install-a-host-integration)** · **[Configure your accounts](docs/provider-setup.md)** · **[Check host compatibility](docs/hosts.md)**
 
-- Save briefs, reuse templates, run production jobs with your selected CLI, and review video versions.
-- Keep approvals tied to an exact video, publication copy and destination.
-- Prepare browser publishing handoffs for YouTube, TikTok and Instagram through a compatible authenticated host.
-- Generate full-script Azure narration, listen to the saved audio, and attach a completed narration to a project before generation.
-- Connect your own DataForSEO account for bounded YouTube search research independently of the selected executor.
-- Export approved media and copy, or explicitly send a video to a configured Telegram destination.
-- Connect a YouTube channel using your own Google Desktop OAuth client; API upload helpers are included, with the limits below.
+## Start with a format
 
-Rendering uses editable HTML, GSAP and Three.js compositions, HyperFrames and FFmpeg. It does not require HeyGen. Image generation is not automatically provided by either executor: use supplied assets or a separately available host tool. Azure and DataForSEO can incur separate charges under your accounts.
+| Starter | What it gives you |
+| --- | --- |
+| [Kinetic Promo](examples/kinetic-promo/README.md) | Bold typography, rhythmic scenes and dimensional backgrounds. |
+| [Portfolio Showreel](examples/portfolio-showreel/README.md) | Layouts, page motion, branding and camera transitions. |
+| [Paper Worlds Science](examples/paper-worlds-science/README.md) | A sanitized layered-science design recipe. A creative brief, not a ready-to-render film. |
 
-The YouTube connection flow identifies and checks a channel; it does not establish an end-to-end upload workflow in the panel. Browser handoffs depend on a compatible authenticated host. These are source capabilities, not proof that your services are connected or that native host acceptance has passed for this release. See [configuration and integration limits](docs/configuration.md). Verify a public post at its destination; a saved record or a sent handoff is not proof of publication.
+The bundled examples use fictional content and include dependency notices. The walkthrough's sample projects illustrate the interface; personal finished films are not included.
 
-## How it fits together
+## Connect only what you need
 
-The shared React studio and its MCP App live in `packages/studio`. Codex embeds the app using host appearance styles. `packages/bb` contains a native BB adapter built with `@get-bb/plugin-sdk`. Shared changes are built and synchronized from one source; the synchronization process checks for conflicting target edits. See [architecture](docs/architecture.md).
+| Job | Available path |
+| --- | --- |
+| Run production | Your own Codex or Claude Code CLI account. |
+| Build the video | Local or configured-server compute, HyperFrames and FFmpeg. |
+| Add narration | Your Azure Speech resource, with explicit synthesis, saved WAV and project attachment. |
+| Research publication copy | Optional DataForSEO connection and a bounded request budget. |
+| Deliver | Media/copy export, explicit Telegram Bot API delivery, or a supported browser publishing handoff. |
 
-## Editable examples
+Azure and DataForSEO can incur separate usage charges. Images come from supplied assets or an available authorized host tool. **[Provider capabilities and costs](docs/provider-setup.md)** explains each connection.
 
-Start with [Kinetic Promo](examples/kinetic-promo/README.md) for moving typography or [Portfolio Showreel](examples/portfolio-showreel/README.md) for layouts and camera transitions. Both contain fictional content, editable source and dependency notices.
+<details>
+<summary>Current beta scope</summary>
 
-The [Paper Worlds Science recipe](examples/paper-worlds-science/README.md) adds sanitized V5 design constraints for layered science explanations. It is a design brief, not an executable composition, and contains no film media or account configuration.
+Reel Studio is a public beta. Real account sign-in, paid-provider generation, remote production and host-specific installation depend on your environment.
 
-## Contributing and license
+YouTube OAuth connects and checks a channel; it does not enable a complete API-upload workflow in this panel. Use supported browser handoffs or export. Installing the public core does not automatically migrate an existing private production system.
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) and [SECURITY.md](SECURITY.md). Owner-authored code is available under the [MIT License](LICENSE); third-party components retain their own terms. The repository does not include personal finished videos.
+Source synchronization is explicit and conflict-aware, rather than a background overwrite process. See [configuration](docs/configuration.md), [architecture](docs/architecture.md) and [deliberate updates](docs/getting-started.md#update-deliberately).
 
-You can fork and develop your own version, report an issue or propose a pull request. Maintainers review what enters this repository; support is best effort. When sharing or reusing changes, preserve the applicable license and copyright notices. See the [testing guide](docs/testing.md) for verification expectations.
+</details>
 
-If Reel Studio is useful to you, please [star the repository](https://github.com/offflinerpsy/reel-studio).
+## Build it with us
+
+Found a bug or have a better way to do something? **[Open an issue](https://github.com/offflinerpsy/reel-studio/issues/new/choose)** or **[send a pull request](CONTRIBUTING.md)**.
+
+Forks are welcome. Develop your own version, share a fix, or contribute a new format. Maintainers review what enters this repository; support is best effort. Preserve the applicable license and copyright notices when reusing changes.
+
+**[Contributing](CONTRIBUTING.md)** · **[Testing](docs/testing.md)** · **[Security](SECURITY.md)**
+
+---
+
+Created by **Alex Yarosh**. Owner-authored code is [MIT licensed](LICENSE); third-party components retain their own terms.
+
+If Reel Studio is useful to you, please **[star the repository](https://github.com/offflinerpsy/reel-studio)**.

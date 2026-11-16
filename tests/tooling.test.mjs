@@ -5,6 +5,7 @@ import {tmpdir} from 'node:os';
 import {join,dirname} from 'node:path';
 import {spawnSync} from 'node:child_process';
 import {mkdirSync,writeFileSync} from 'node:fs';
+import {createHash} from 'node:crypto';
 import {studio,bb} from '../scripts/files.mjs';
 import {version} from '../scripts/common.mjs';
 import {inspectPublicContent} from '../scripts/public-content.mjs';
@@ -75,6 +76,51 @@ test('only exact reviewed font paths and bytes pass in source and package layout
  assert.deepEqual(inspectPublicContent('examples/Manrope.ttf',bytes),['unexpected binary']);
  assert.deepEqual(inspectPublicContent(path,Buffer.from([0,1,2,3])),['unexpected binary']);
 });
+test('reviewed showcase media passes source and package gates; changed bytes and extra media never promote output',async()=>{
+ const root=await fixture(),out=join(root,'release',`reel-studio-${version}`);
+ const names=['reel-studio-demo.gif','reel-studio-demo.mp4','reel-studio-overview.png'],originals=new Map();
+ try{
+  await mkdir(join(root,'docs/media'),{recursive:true});
+  for(const name of names){const path='docs/media/'+name,data=await readFile(join(src,path));originals.set(path,data);await writeFile(join(root,path),data);}
+  let source=run(root,'scan-public.mjs'),packaged=run(root,'package.mjs');
+  assert.equal(source.status,0,source.stderr);assert.equal(packaged.status,0,packaged.stderr);
+  const manifest=JSON.parse(await readFile(join(out,'MANIFEST.json')));
+  for(const [path,data] of originals){assert.deepEqual(await readFile(join(out,path)),data);assert.equal(manifest.files.find(f=>f.path===path)?.sha256,createHash('sha256').update(data).digest('hex'));}
+  await rm(out,{recursive:true});
+  for(const [path,data] of originals){
+   const changed=Buffer.from(data);changed[changed.length-1]^=1;await writeFile(join(root,path),changed);
+   source=run(root,'scan-public.mjs');packaged=run(root,'package.mjs');
+   assert.equal(source.status,1);assert.ok(source.stderr.includes(`${path}: unreviewed media bytes`));
+   assert.notEqual(packaged.status,0);assert.ok(packaged.stderr.includes(`${path}: unreviewed media bytes`));await assert.rejects(access(out));
+   // Text-like replacement bytes must not bypass the digest check either.
+   assert.deepEqual(inspectPublicContent(path,Buffer.from('replacement')),['unreviewed media bytes']);
+   await writeFile(join(root,path),data);
+  }
+  for(const path of ['docs/media/private.mp4','docs/media/private.gif','docs/media/private.png','docs/media/nested/reel-studio-demo.mp4']){
+   await mkdir(dirname(join(root,path)),{recursive:true});await writeFile(join(root,path),originals.get('docs/media/reel-studio-demo.mp4'));
+   source=run(root,'scan-public.mjs');packaged=run(root,'package.mjs');
+   assert.equal(source.status,1);assert.ok(source.stderr.includes(`${path}: media file`));
+   assert.notEqual(packaged.status,0);assert.ok(packaged.stderr.includes(`${path}: media file`));await assert.rejects(access(out));await rm(join(root,path));
+  }
+  assert.deepEqual(inspectPublicContent('packages/docs/media/reel-studio-demo.mp4',originals.get('docs/media/reel-studio-demo.mp4')),['media file']);
+ }finally{await rm(root,{recursive:true,force:true});}
+});
+test('package includes reviewed README locales and blocks private or symlinked translations',async()=>{
+ const root=await fixture(),locales=['README.ru.md','README.es.md','README.de.md','README.zh-CN.md'],out=join(root,'release',`reel-studio-${version}`);
+ try{
+  for(const name of locales)await writeFile(join(root,name),`Safe ${name}`);
+  await writeFile(join(root,'README.unreviewed.md'),'Not part of the locale contract');
+  let result=run(root,'package.mjs');assert.equal(result.status,0,result.stderr);
+  const manifest=JSON.parse(await readFile(join(out,'MANIFEST.json')));
+  for(const name of locales){assert.equal(await readFile(join(out,name),'utf8'),`Safe ${name}`);assert.ok(manifest.files.some(f=>f.path===name));}
+  await assert.rejects(access(join(out,'README.unreviewed.md')));
+  await rm(out,{recursive:true});
+  await writeFile(join(root,'README.ru.md'),'/'+'Users'+'/private-person/private');
+  result=run(root,'package.mjs');assert.notEqual(result.status,0);assert.match(result.stderr,/README\.ru\.md: private path/);await assert.rejects(access(out));
+  await rm(join(root,'README.ru.md'));await symlink(join(root,'README.md'),join(root,'README.ru.md'));
+  result=run(root,'package.mjs');assert.notEqual(result.status,0);assert.match(result.stderr,/Refusing symlink/);await assert.rejects(access(out));
+ }finally{await rm(root,{recursive:true,force:true});}
+});
 const src=process.cwd();
 async function fixture(){const root=await mkdtemp(join(await (await import('node:fs/promises')).realpath(tmpdir()),'reel-tool-test-'));await cp(join(src,'scripts'),join(root,'scripts'),{recursive:true});for(const [name,files] of [['studio',studio],['bb',bb]]) for(const f of files){const path=join(root,'packages',name,f);await mkdir(dirname(path),{recursive:true});await writeFile(path,'safe fixture\n');}for(const f of ['package.json','packages/studio/package.json','packages/studio/plugin.json','packages/studio/.codex-plugin/plugin.json','packages/bb/package.json']) await writeFile(join(root,f),JSON.stringify({version}));for(const name of ['studio','bb']){await mkdir(join(root,'packages',name,'tests'),{recursive:true});await writeFile(join(root,'packages',name,'package-lock.json'),JSON.stringify({version,packages:{'':{version}}}));}await mkdir(join(root,'packages/studio/ui'),{recursive:true});await writeFile(join(root,'packages/studio/ui/app.jsx'),'original UI');await writeFile(join(root,'packages/studio/server/store.mjs'),'original store');for(const s of ['kinetic-promo-video','portfolio-showreel-video']){const p=join(root,'packages/studio/skills',s,'SKILL.md');await mkdir(dirname(p),{recursive:true});await writeFile(p,'Safe example');}for(const dep of ['react','react-dom','lucide-react','@modelcontextprotocol/sdk','@modelcontextprotocol/ext-apps','@openai/mcp-extensions','zod','esbuild']){const p=join(root,'packages/studio/node_modules',dep,'LICENSE');await mkdir(dirname(p),{recursive:true});await writeFile(p,'Test license');}await writeFile(join(root,'README.md'),'Test');await writeFile(join(root,'LICENSE'),'MIT test');return root;}
 function run(root,script,args=[]){if(script==='package.mjs'){const dir=join(root,'packages/studio/node_modules/esbuild');mkdirSync(dir,{recursive:true});writeFileSync(join(dir,'package.json'),JSON.stringify({name:'esbuild',version:'0.28.2',main:'index.cjs'}));writeFileSync(join(dir,'index.cjs'),'exports.build=async()=>({metafile:{inputs:{}}});');for(const file of ['CONTRIBUTING.md','SECURITY.md','CODE_OF_CONDUCT.md'])writeFileSync(join(root,file),'Safe fixture');for(const folder of ['docs','examples']){mkdirSync(join(root,folder),{recursive:true});writeFileSync(join(root,folder,'fixture.md'),'Safe fixture');}}return spawnSync(process.execPath,[join(root,'scripts',script),...args],{cwd:root,encoding:'utf8'});}
@@ -83,5 +129,15 @@ test('Studio sync transfers maintained UI and store source, blocks conflicts and
 test('package checks versions, excludes test files and blocks private material',async()=>{const root=await fixture();try{const testFile=join(root,'packages/bb/tests/private.test.mjs');await mkdir(dirname(testFile),{recursive:true});await writeFile(testFile,'private fixture');await writeFile(join(root,'packages/bb/package.json'),JSON.stringify({version:'0.1.0'}));assert.match(run(root,'package.mjs').stderr,/Version mismatch/);await writeFile(join(root,'packages/bb/package.json'),JSON.stringify({version}));await writeFile(join(root,'packages/bb/app.tsx'),'/'+'Users'+'/private-person/private');assert.match(run(root,'package.mjs').stderr,/Release scan blocked/);await writeFile(join(root,'packages/bb/app.tsx'),'safe');assert.equal(run(root,'package.mjs').status,0);const manifest=JSON.parse(await readFile(join(root,`release/reel-studio-${version}/MANIFEST.json`)));assert.ok(manifest.files.some(f=>f.path==='bb/app.tsx'));assert.ok(!manifest.files.some(f=>f.path.includes('tests/')));}finally{await rm(root,{recursive:true,force:true});}});
 test('staged scan examines index blobs rather than edited worktree files',async()=>{const root=await fixture();try{assert.equal(spawnSync('git',['init','-q'],{cwd:root}).status,0);const secret='github'+'_pat_'+'A'.repeat(50);await writeFile(join(root,'outside-known-set.txt'),secret);assert.equal(spawnSync('git',['add','outside-known-set.txt'],{cwd:root}).status,0);await writeFile(join(root,'outside-known-set.txt'),'safe working copy');const result=run(root,'scan-public.mjs',['--staged']);assert.equal(result.status,1);assert.match(result.stderr,/outside-known-set.txt: credential/);assert.ok(!result.stderr.includes(secret));}finally{await rm(root,{recursive:true,force:true});}});
 test('source scan includes examples',async()=>{const root=await fixture();try{await mkdir(join(root,'examples'),{recursive:true});await writeFile(join(root,'examples/example.json'),'/'+'Users'+'/private-person/private');const result=run(root,'scan-public.mjs');assert.equal(result.status,1);assert.match(result.stderr,/examples\/example.json: private path/);}finally{await rm(root,{recursive:true,force:true});}});
+test('source scan includes each reviewed README locale',async()=>{
+ const root=await fixture();
+ try{
+  for(const name of ['README.ru.md','README.es.md','README.de.md','README.zh-CN.md']){
+   await writeFile(join(root,name),'/'+'Users'+'/private-person/private');
+   const result=run(root,'scan-public.mjs');assert.equal(result.status,1);assert.ok(result.stderr.includes(`${name}: private path`));
+   await rm(join(root,name));
+  }
+ }finally{await rm(root,{recursive:true,force:true});}
+});
 test('release registry matches source registry and points to packaged Studio',async()=>{const root=await fixture();try{const r=run(root,'package.mjs');assert.equal(r.status,0,r.stderr);const source=JSON.parse(await readFile(join(src,'.agents/plugins/marketplace.json'))),out=join(root,`release/reel-studio-${version}`),packaged=JSON.parse(await readFile(join(out,'.agents/plugins/marketplace.json')));assert.equal(source.plugins[0].source.path,'./packages/studio');assert.equal(packaged.plugins[0].source.path,'./studio');source.plugins[0].source.path='./studio';assert.deepEqual(packaged,source);await access(join(out,packaged.plugins[0].source.path,'plugin.json'));for(const p of ['README.md','CONTRIBUTING.md','docs/fixture.md','examples/fixture.md'])await access(join(out,p));const manifest=JSON.parse(await readFile(join(out,'MANIFEST.json')));assert.ok(manifest.files.some(f=>f.path==='.agents/plugins/marketplace.json'));}finally{await rm(root,{recursive:true,force:true});}});
 test('Studio sync excludes common credentials and generated dependency directories',async()=>{const root=await fixture(),target=await mkdtemp(join(await (await import('node:fs/promises')).realpath(tmpdir()),'reel-sync-exclusions-'));try{const dir=join(root,'packages/studio/server');await writeFile(join(dir,'.env'),'not for sync');await writeFile(join(dir,'credentials.json'),'not for sync');await mkdir(join(dir,'node_modules'),{recursive:true});await writeFile(join(dir,'node_modules/dependency.js'),'not for sync');const result=run(root,'sync.mjs',['apply','--target',target,'--adapter','studio']);assert.equal(result.status,0,result.stderr);for(const path of ['server/.env','server/credentials.json','server/node_modules/dependency.js','dist/server.mjs'])await assert.rejects(access(join(target,path)));}finally{await rm(root,{recursive:true,force:true});await rm(target,{recursive:true,force:true});}});

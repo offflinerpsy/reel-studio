@@ -4,7 +4,7 @@ import {spawnSync} from 'node:child_process';
 import {root} from './common.mjs';
 import {inspectPublicContent} from './public-content.mjs';
 // These are the intended public inputs, not a substitute for reviewing the exact Git tree.
-const entries=['README.md','LICENSE','CONTRIBUTING.md','SECURITY.md','CODE_OF_CONDUCT.md','package.json','.gitignore','.agents/plugins/marketplace.json','docs','.github','scripts','tests','packages','examples'];
+const entries=['README.md','README.ru.md','README.es.md','README.de.md','README.zh-CN.md','LICENSE','CONTRIBUTING.md','SECURITY.md','CODE_OF_CONDUCT.md','package.json','.gitignore','.agents/plugins/marketplace.json','docs','.github','scripts','tests','packages','examples'];
 const skip=new Set(['node_modules','dist','.git','.private','release']);
 let count=0, files=0;
 function check(name,data){files++;for(const label of inspectPublicContent(name,data)){console.error(`${name}: ${label}`);count++;}}

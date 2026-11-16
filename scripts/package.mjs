@@ -16,6 +16,11 @@ try {
  for(const skill of ['kinetic-promo-video','portfolio-showreel-video']) { const dir=join(root,'packages/studio/skills',skill); for(const file of await walk(dir)) { const from=join(dir,file),to=join(stage,'studio/skills',skill,file); await mkdir(dirname(to),{recursive:true}); await copyFile(from,to); } }
  await copyBundleLicenses(join(stage,'licenses'));
  for(const name of ['LICENSE','README.md','CONTRIBUTING.md','SECURITY.md','CODE_OF_CONDUCT.md']) await copyFile(join(root,name),join(stage,name));
+ // Keep the reviewed language navigation usable in the standalone archive.
+ for(const name of ['README.ru.md','README.es.md','README.de.md','README.zh-CN.md']) {
+  const from=join(root,name);await assertNoSymlink(from);
+  try {await copyFile(from,join(stage,name));} catch(e) {if(e.code!=='ENOENT')throw e;}
+ }
  for(const folder of ['docs','examples']) for(const file of await walk(join(root,folder))) {const to=join(stage,folder,file);await mkdir(dirname(to),{recursive:true});await copyFile(join(root,folder,file),to);}
  const marketplace={name:'reel-studio-community',plugins:[{name:'reel-studio',source:{source:'local',path:'./studio'},policy:{installation:'AVAILABLE',authentication:'ON_INSTALL'},category:'Productivity'}]};
  await mkdir(join(stage,'.agents/plugins'),{recursive:true});await (await import('node:fs/promises')).writeFile(join(stage,'.agents/plugins/marketplace.json'),JSON.stringify(marketplace,null,2)+'\n');
