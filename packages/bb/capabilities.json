@@ -1,22 +1,14 @@
 {
-  "sourceVersion": "0.2.0",
-  "sourceSha256": "8bbcdb0ea31598a4a6696a184a52b4e4c9facbc7b507f47cea78c14054e7630d",
+  "sourceVersion": "0.3.0",
+  "sourceSha256": "5d8580ab3a6caeb1ecee1b4f2fb3eed2a3591d99910c8f49372905f42513bb24",
   "sdkVersion": "1.32.1",
   "sourceFiles": {
-    "index.mjs": "8bbcdb0ea31598a4a6696a184a52b4e4c9facbc7b507f47cea78c14054e7630d",
-    "store.mjs": "930185cf9a05e773da9655de1038981ecc9fec0d58499877142403b877808198",
-    "production-lines.mjs": "bd02d956fd1397dd3400bddac3cf9f23fab29e560f8f3c92c106c2eecb3b2e3a",
-    "owner-authority.mjs": "9df53dd0b569f36083060d0ed017ef1f0c6333a39a71a539b619912aca906f23",
-    "external-jobs.mjs": "ed622403d7face341b08b01eafcdc00cde78b4e772feee28d2e15803f9804ed8",
-    "codex-runtime.mjs": "ba74691822a7e77ffb5fa802af0c7f5e93f1a995a4dafd589c8d6165edf1ee8c",
-    "research.mjs": "3215e1c9dc8f1b1b9acb6866cc16ec6f86add556a789e89456803b23019f0bb4",
-    "speech-providers.mjs": "c4ec02123e04517577f2f9b8c1412d187c27c768c3804a8e229eac8cbcf2746e",
-    "runtime-adoption.mjs": "cc976dcfea2d9aa384cd1c556dae96f527a478bf58272c01cebacbd6165aed87",
-    "request-reconciliation.mjs": "295b97ea228565778125e671cc40ee0a62ffa56a941566634d308f9405b4b832",
-    "maintenance-api.mjs": "0e9c14ea02ae6d5e8743b25815872ab0c3c62e75dabf685d4624c05db9ae70c4",
-    "owner-host/authority-verifier.mjs": "011b49d5ed3c96f9861086005c63909d102e288554511a00d77d2a7a81b22d46",
-    "owner-host/host_probe.py": "159a4588db3425128245e1939632c99e70cd478ff8e6fa6742cea3e4ddb1be92",
-    "owner-host-loader.mjs": "6d5fe1d09410e90798fc2b35d5c60e9ff0d4b7365c303b212f7a6dbb3405a9be"
+    "index.mjs": "5d8580ab3a6caeb1ecee1b4f2fb3eed2a3591d99910c8f49372905f42513bb24",
+    "store.mjs": "36570dceb7c677b0b37572c60bcc0bf000d2163c1b87ec469ce77b88e4d436c1",
+    "settings.mjs": "830a04e24ca5d1530ccc60abe3834a55f2c3ad5be4629ed78fdab506038b52b0",
+    "remote-config.mjs": "3fb1b2188d233732353344e2204dce6b89e4a8b4ea7cc04b520244c7f0342bdf",
+    "mac-ui-relay.mjs": "97da15dcb0e91546fe7f06b46dc2f2d02a478970a3e16b6d0ffe05dcbe91a4c9",
+    "media-transfer.mjs": "f1de8815ddbd075be00663817d2c44448f23f5951ca4d00c98dbf21ebe8f5c15"
   },
   "schemas": {
     "reel_open": {
@@ -942,6 +934,86 @@
         "id",
         "requestKey"
       ],
+      "$schema": "http://json-schema.org/draft-07/schema#"
+    },
+    "reel_settings_read": {
+      "type": "object",
+      "properties": {},
+      "$schema": "http://json-schema.org/draft-07/schema#"
+    },
+    "reel_settings_save": {
+      "type": "object",
+      "properties": {
+        "config": {
+          "type": "object",
+          "properties": {
+            "mode": {
+              "type": "string",
+              "enum": [
+                "local",
+                "ssh"
+              ]
+            },
+            "localHome": {
+              "type": "string",
+              "minLength": 2,
+              "maxLength": 2000
+            },
+            "localPlugin": {
+              "type": "string",
+              "minLength": 2,
+              "maxLength": 2000
+            },
+            "remote": {
+              "type": "object",
+              "properties": {
+                "sshHost": {
+                  "type": "string",
+                  "maxLength": 250
+                },
+                "remoteHome": {
+                  "type": "string",
+                  "maxLength": 2000
+                },
+                "remotePlugin": {
+                  "type": "string",
+                  "maxLength": 2000
+                },
+                "remoteNode": {
+                  "type": "string",
+                  "maxLength": 2000
+                }
+              },
+              "required": [
+                "sshHost",
+                "remoteHome",
+                "remotePlugin",
+                "remoteNode"
+              ],
+              "additionalProperties": false
+            },
+            "telegramChatId": {
+              "default": "",
+              "type": "string",
+              "maxLength": 100
+            }
+          },
+          "required": [
+            "mode",
+            "localHome",
+            "localPlugin"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "config"
+      ],
+      "$schema": "http://json-schema.org/draft-07/schema#"
+    },
+    "reel_settings_export": {
+      "type": "object",
+      "properties": {},
       "$schema": "http://json-schema.org/draft-07/schema#"
     },
     "reel_models": {
@@ -3268,17 +3340,5 @@
       ],
       "$schema": "http://json-schema.org/draft-07/schema#"
     }
-  },
-  "nativeBuild": {
-    "entrySHA256": "7511f46b33604129926f99ea74dc958497ae65fd6a86000ec7848686103c51be",
-    "ownerProtocol": 2,
-    "platform": "darwin"
-  },
-  "isolatedSmoke": {
-    "platform": "darwin",
-    "version": "0.2.0",
-    "workspaceURI": "ui://reel-studio/workspace/0.2.0",
-    "tools": 53,
-    "productionCalls": 0
   }
 }

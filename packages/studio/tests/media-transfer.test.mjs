@@ -31,6 +31,14 @@ test('UI refuses incomplete native chunks and invalid manifests',async()=>{
  await assert.rejects(()=>readNativeMedia(async()=>({contents:[{text:JSON.stringify({...manifest,bytes:1e12})}]}),'allowed'),/Invalid/);
 });
 
+test('speech WAV survives native manifest and chunk transfer with its audio MIME',async t=>{
+ const dir=mkdtempSync(join(tmpdir(),'reel-speech-transfer-'));t.after(()=>rmSync(dir,{recursive:true,force:true}));
+ const file=join(dir,'sample.wav'),bytes=Buffer.alloc(MEDIA_CHUNK_BYTES+44);bytes.write('RIFF',0);bytes.writeUInt32LE(bytes.length-8,4);bytes.write('WAVE',8);writeFileSync(file,bytes);
+ const id='speech-'+'a'.repeat(32),transfer=createMediaTransfer(value=>value===id?file:null);
+ const resource=await readNativeMedia(async({uri})=>{const u=new URL(uri),[name,sha,index]=u.pathname.slice(1).split('/');return {contents:[u.protocol==='reel-media-info:'?{text:JSON.stringify(transfer.manifest(name))}:transfer.chunk(name,sha,index)]};},id);
+ assert.equal(transfer.manifest(id).mimeType,'audio/wav');assert.equal(resource.mimeType,'audio/wav');assert.deepEqual(Buffer.from(resource.blob,'base64'),bytes);
+});
+
 test('leaving a preview stops requesting chunks instead of occupying the connection',async()=>{
  const controller=new AbortController();let chunks=0;
  const manifest={bytes:MEDIA_CHUNK_BYTES*100,chunkBytes:MEDIA_CHUNK_BYTES,chunks:100,sha256:'a'.repeat(64),mimeType:'video/mp4'};

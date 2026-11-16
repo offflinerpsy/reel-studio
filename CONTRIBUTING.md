@@ -2,6 +2,8 @@
 
 Thank you for helping improve Reel Studio. Please read the [Code of Conduct](CODE_OF_CONDUCT.md).
 
+Write public documentation, issue and pull request text, and interface labels in English. Video content and account metadata can use the language of their brief. Keep integration claims specific: a local check, saved connection or prepared browser handoff does not establish that a service is authenticated or that a video was published.
+
 For a bug, open an issue with the affected host, versions, steps to reproduce, expected and actual behavior, and a sanitized error or screenshot if useful. For a larger change, describe the problem and proposed approach in an issue before investing in implementation. Use the issue templates where available.
 
 ## Development

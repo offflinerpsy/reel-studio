@@ -12,7 +12,7 @@ export default async function plugin(bb:BbPluginApi){
   workspace:async()=>workspaceSchema.parse(await gateway.workspace()),
   callTool:async input=>{const result=await gateway.call(input);if(HOST_HANDOFF_TOOLS.has(input.name)&&input.binding)await handoffs.capture(input.binding,input.name,input.arguments??{},result);return result;},
   readMedia:async input=>mediaResultSchema.parse(await gateway.media(input.uri)),
-  destinations:input=>handoffs.destinations(input.projectId),bindDestination:input=>handoffs.bind(input),sendHandoff:async input=>sendResultSchema.parse(await handoffs.send(input)),handoffReceipts:input=>handoffs.receipts(input),reconcileHandoff:async input=>reconcileResultSchema.parse(await handoffs.reconcile(input)),
+  destinations:input=>handoffs.destinations(input.projectId,input.hostId),bindDestination:input=>handoffs.bind(input),sendHandoff:async input=>sendResultSchema.parse(await handoffs.send(input)),handoffReceipts:input=>handoffs.receipts(input),reconcileHandoff:async input=>reconcileResultSchema.parse(await handoffs.reconcile(input)),
  });
  const request=z.object({requestKey:z.string().regex(/^[a-f0-9]{64}$/)}).strict();
  const read=request.extend({studioProjectId:z.string().min(1).max(200).optional()}).strict();

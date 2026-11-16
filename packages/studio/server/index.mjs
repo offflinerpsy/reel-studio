@@ -23,6 +23,7 @@ import {operationsSnapshot} from './production-lines.mjs';
 import {buildBoardSnapshot} from './startup-projection.mjs';
 import {createMediaTransfer} from './media-transfer.mjs';
 import {configuredAuthorityVerifier} from './owner-host-loader.mjs';
+import {installationSettings,settingsSchema} from './settings.mjs';
 
 const root=resolve(dirname(fileURLToPath(import.meta.url)),'..');
 // A versioned resource identity prevents the host reusing an older global view.
@@ -85,12 +86,13 @@ function baseTaskPrompt(p,j){
 export async function createStudio({home=process.env.REEL_STUDIO_HOME||join(homedir(),'.local','share','reel-studio'),runtime=new CodexRuntime(),researchService,preview=false,paused=process.env.REEL_STUDIO_PAUSED==='1',runtimeLabel=process.env.REEL_STUDIO_RUNTIME||'local',rpcForwarder,authorityVerifier}={}){
  const configuredVerifier=authorityVerifier??configuredAuthorityVerifier(home);
  const store=new StudioStore(home,{authorityVerifier:configuredVerifier});if(!rpcForwarder)store.recover();
+ const installation=installationSettings({home,pluginRoot:root,runtimeLabel});
  const token=randomBytes(32).toString('hex');let catalog=null,speechCatalog=null,researchAccess=null;const commands=new Map(),previews=new Map();
  const research=researchService||new ResearchService(home,{request:(a,o)=>runtime.researchRequest(a,o),checkAccess:o=>runtime.researchAccess(o)});
  function previewFor(v){if(!previews.has(v.id)){try{previews.set(v.id,ensurePreview(home,{...v,path:store.media(v.id)}));}catch{previews.set(v.id,null);}}return previews.get(v.id);}
  function mediaFile(name){
   if(['kinetic.mp4','kinetic.jpg','portfolio.mp4','portfolio.jpg'].includes(name))return join(root,'assets',name);
-  const speechMatch=/^speech-([a-f0-9]{32})$/.exec(name); if(speechMatch){const file=join(homedir(),'.local','share','reel-studio','speech-audio',`${speechMatch[1]}.wav`);return existsSync(file)?file:null;}
+  const speechMatch=/^speech-([a-f0-9]{32})$/.exec(name); if(speechMatch){const file=join(home,'speech-audio',`${speechMatch[1]}.wav`);return existsSync(file)?file:null;}
   const match=/^(preview|poster)-([a-f0-9-]{36})$/.exec(name);
   if(match){const v=store.read().projects.flatMap(p=>p.versions).find(v=>v.id===match[2]);if(!v)return null;const r=previewFor(v);return r?.[match[1]==='preview'?'video':'poster']||null;}
   return store.media(name);
@@ -220,9 +222,12 @@ export async function createStudio({home=process.env.REEL_STUDIO_HOME||join(home
   for(const attemptId of a.kind==='publication'?[a.id]:record.items.map(x=>x.attemptId))store.publicationJob(attemptId);
   return {claim:store.lineClaim(a)};
  });
+ add('reel_settings_read',{},async()=>({settings:installation.read()}),{appOnly:true,readOnly:true,snapshotMode:'none'});
+ add('reel_settings_save',{config:settingsSchema},async a=>({settings:installation.save(a.config)}),{appOnly:true,configuration:true,snapshotMode:'none'});
+ add('reel_settings_export',{},async()=>({setup:installation.setup()}),{appOnly:true,configuration:true,snapshotMode:'none'});
  add('reel_models',{},async()=>{catalog=await runtime.catalog();return {catalog};},{readOnly:true,snapshotMode:'board'});
  add('reel_speech_catalog',{},async()=>{speechCatalog=speechCatalogEntry(await listAzureSpeechVoices());return {speech:speechCatalog};},{readOnly:true,snapshotMode:'board'});
- add('reel_speech_sample',{voice:z.string().min(3).max(100),locale:z.string().min(3).max(20),text:z.string().trim().min(1).max(5000),rate:z.string().max(20).optional(),pitch:z.string().max(20).optional(),style:z.string().max(80).optional()},async a=>{if(!speechCatalog)speechCatalog=speechCatalogEntry(await listAzureSpeechVoices());const selected=speechCatalog.voices.find(v=>v.id===a.voice&&v.locale===a.locale);if(!selected)throw new Error('Select a voice from the current Azure catalog.');if(selected.type==='NeuralHD')throw new Error('Azure Speech NeuralHD voices are not eligible for the standard Reel Studio route.');if(a.style&&!(selected.styles||[]).includes(a.style))throw new Error('Select a style from the current Azure catalog.');const result=await synthesizeAzureSpeechOnce({mode:'sdk',text:a.text,voice:a.voice,voiceType:selected.type,locale:a.locale,rate:a.rate,pitch:a.pitch,style:a.style,receiptDir:join(homedir(),'.local','share','reel-studio','speech-receipts'),outputDir:join(homedir(),'.local','share','reel-studio','speech-audio')});return {sample:{requestId:result.requestId,provider:result.provider,model:result.model,mode:result.mode,resourceIdentity:result.resourceIdentity,region:result.region,voice:result.voice,locale:result.locale,style:result.style,bytes:result.bytes,sha256:result.sha256,duration:result.duration,wordTimings:result.wordTimings,audioURL:mediaURL(`speech-${result.requestId}`)}};},{readOnly:false,snapshotMode:'board'});
+ add('reel_speech_sample',{voice:z.string().min(3).max(100),locale:z.string().min(3).max(20),text:z.string().trim().min(1).max(5000),rate:z.string().max(20).optional(),pitch:z.string().max(20).optional(),style:z.string().max(80).optional()},async a=>{if(!speechCatalog)speechCatalog=speechCatalogEntry(await listAzureSpeechVoices());const selected=speechCatalog.voices.find(v=>v.id===a.voice&&v.locale===a.locale);if(!selected)throw new Error('Select a voice from the current Azure catalog.');if(selected.type==='NeuralHD')throw new Error('Azure Speech NeuralHD voices are not eligible for the standard Reel Studio route.');if(a.style&&!(selected.styles||[]).includes(a.style))throw new Error('Select a style from the current Azure catalog.');const result=await synthesizeAzureSpeechOnce({mode:'sdk',text:a.text,voice:a.voice,voiceType:selected.type,locale:a.locale,rate:a.rate,pitch:a.pitch,style:a.style,receiptDir:join(home,'speech-receipts'),outputDir:join(home,'speech-audio')});return {sample:{requestId:result.requestId,provider:result.provider,model:result.model,mode:result.mode,resourceIdentity:result.resourceIdentity,region:result.region,voice:result.voice,locale:result.locale,style:result.style,bytes:result.bytes,sha256:result.sha256,duration:result.duration,wordTimings:result.wordTimings,audioURL:mediaURL(`speech-${result.requestId}`)}};},{readOnly:false,snapshotMode:'board'});
  add('reel_compute_check',{},async()=>{if(!runtime.check)throw new Error('Build location is managed by this Studio host');return {compute:await runtime.check()};},{readOnly:true});
  add('reel_compute_select',{target:z.enum(['macbook','linux']),expectedRevision:revision},async a=>{
   if(!runtime.select)throw new Error('Build location is managed by this Studio host');
@@ -295,7 +300,7 @@ export async function createStudio({home=process.env.REEL_STUDIO_HOME||join(home
   if(runtime.computeState||p.productionLineId){const queued=store.lineEnqueueAttempt(attempt.id);return {...queued,canSend:false};}
   if(attempt.reused&&(attempt.effect!=='not_delivered'||attempt.dispatchState&&attempt.dispatchState!=='not_sent'))return {attempt,canSend:false};
   const skill=a.channel==='tiktok'?'reel-studio:tiktok-browser-publishing':a.channel==='youtube'?'youtube-shorts-publishing':'the existing supported browser controls';
-  const prompt=`I clicked Publish to ${a.channel} in Reel Studio and authorize publishing only this approved video and its ${a.channel} copy to my selected account ${c.account} (${c.label}). Use [@Reel Studio](plugin://reel-studio@alex-studio), read reel_publication_job for attemptId ${attempt.id}, and use ${skill}. Read the exact digest, approval and destination before any upload. Inspect the existing authenticated browser inventory and confirm ${c.account} in profile ${c.profileName}; preserve existing drafts and other workers' tabs. Do not substitute another account. Upload and publish only the immutable file and approved platform copy in that job. Never replay an uncertain effect. Record progress with reel_publication_result; independent verification requires the exact public post URL and observedAccount ${c.account}, including the actual YouTube channel identity when applicable. An upload or draft is not a verified public post. No new account, paid route, OAuth scope or recurring action is authorized.`;
+  const prompt=`I clicked Publish to ${a.channel} in Reel Studio and authorize publishing only this approved video and its ${a.channel} copy to my selected account ${c.account} (${c.label}). Use the Reel Studio tools in this host, read reel_publication_job for attemptId ${attempt.id}, and use ${skill}. Read the exact digest, approval and destination before any upload. Inspect the existing authenticated browser inventory and confirm ${c.account} in profile ${c.profileName}; preserve existing drafts and other workers' tabs. Do not substitute another account. Upload and publish only the immutable file and approved platform copy in that job. Never replay an uncertain effect. Record progress with reel_publication_result; independent verification requires the exact public post URL and observedAccount ${c.account}, including the actual YouTube channel identity when applicable. An upload or draft is not a verified public post. No new account, paid route, OAuth scope or recurring action is authorized.`;
   return {attempt,prompt,canSend:true};
  }
  add('reel_browser_prepare',{projectId:id,versionId:id,channel:z.enum(['tiktok','youtube','instagram']),connectionId:id},browserPrepare,{appOnly:true});
@@ -320,7 +325,7 @@ export async function createStudio({home=process.env.REEL_STUDIO_HOME||join(home
   const file=mediaFile(name);
   if(!file||!existsSync(file))throw new Error('Media not found');
   if(statSync(file).size>128*1024*1024)throw new Error('Use the saved master MP4: this preview exceeds 128 MB');
-  const mimeType=extname(file)==='.mp4'?'video/mp4':extname(file)==='.png'?'image/png':extname(file)==='.webp'?'image/webp':'image/jpeg';
+  const mimeType=extname(file)==='.mp4'?'video/mp4':extname(file)==='.wav'?'audio/wav':extname(file)==='.png'?'image/png':extname(file)==='.webp'?'image/webp':'image/jpeg';
   return {contents:[{uri:uri.href,mimeType,blob:readFileSync(file).toString('base64')}]};
  });
  registerAppResource(server,'reel-studio',UI_URI,{},async()=>({contents:[{uri:UI_URI,mimeType:RESOURCE_MIME_TYPE,text:readFileSync(join(root,'dist','workspace.html'),'utf8'),_meta:{ui:{csp:{connectDomains:[address],resourceDomains:[address,'data:','blob:']}},'openai/ui':{preferredDisplayMode:'fullscreen',availableDisplayModes:['fullscreen']}}}]}));

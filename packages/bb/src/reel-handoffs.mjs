@@ -1,5 +1,5 @@
 import {createHash,randomUUID} from 'node:crypto';
-import {posix} from 'node:path';
+import {posix,win32} from 'node:path';
 import {VERSION} from './reel-gateway.mjs';
 
 const PREFIX='handoff-v1:';
@@ -12,9 +12,15 @@ const PREPARE=new Set(['reel_browser_prepare','reel_account_verify_prepare','ree
 const hash=value=>createHash('sha256').update(JSON.stringify(value)).digest('hex');
 const copy=value=>JSON.parse(JSON.stringify(value));
 const pathInside=(child,parent)=>{
-  if(typeof child!=='string'||typeof parent!=='string'||!posix.isAbsolute(child)||!posix.isAbsolute(parent))return false;
-  const path=posix.normalize(child),source=posix.normalize(parent).replace(/\/$/,'');
-  return path===source||path.startsWith(source+'/');
+  if(typeof child!=='string'||typeof parent!=='string'||child.includes('\0')||parent.includes('\0'))return false;
+  // Host paths must be compared on their own platform, never on the plugin
+  // server's platform. Reject drive-relative and cross-platform paths.
+  const windows=value=>/^[a-z]:[\\/]/i.test(value)||/^\\\\[^\\/]+[\\/][^\\/]+/.test(value);
+  if(windows(child)!==windows(parent))return false;
+  const paths=windows(child)?win32:posix;
+  if(!paths.isAbsolute(child)||!paths.isAbsolute(parent))return false;
+  const relative=paths.relative(parent,child);
+  return relative===''||!paths.isAbsolute(relative)&&relative!=='..'&&!relative.startsWith('..'+paths.sep);
 };
 /** @param {string} _name @param {Record<string,unknown>} _args @returns {Promise<any>} */
 async function rejectNativeWorker(_name,_args){throw new Error('REEL_BB_NATIVE_WORKER_ROUTE_UNAVAILABLE');}
@@ -63,17 +69,18 @@ export function createReelHandoffs({sdk,kv,pluginId,nativeCall=rejectNativeWorke
   async function resolveDestination(threadId,projectId){
     ensureOpen();
     const api=sdk();
-    const [config,thread,project]=await Promise.all([api.system.config(),api.threads.get({threadId}),api.projects.get({projectId})]);
-    if(!config.primaryHostId||config.primaryHostPlatform!=='darwin'||project.id!==projectId||thread.id!==threadId||thread.projectId!==projectId||thread.providerId!=='codex'||thread.visibility!=='visible'||thread.archivedAt!==null||thread.deletedAt!==null||!thread.environmentId)throw new Error('REEL_BB_DESTINATION_NOT_ELIGIBLE');
+    const [thread,project]=await Promise.all([api.threads.get({threadId}),api.projects.get({projectId})]);
+    if(project.id!==projectId||thread.id!==threadId||thread.projectId!==projectId||thread.providerId!=='codex'||thread.visibility!=='visible'||thread.archivedAt!==null||thread.deletedAt!==null||!thread.environmentId)throw new Error('REEL_BB_DESTINATION_NOT_ELIGIBLE');
     if(!['idle','active'].includes(thread.status)||['waiting-for-host','error','stopping','provisioning'].includes(thread.runtime?.displayStatus))throw new Error('REEL_BB_DESTINATION_NOT_READY');
     const environment=await api.environments.get({environmentId:thread.environmentId});
-    if(environment.id!==thread.environmentId||environment.projectId!==projectId||environment.hostId!==config.primaryHostId||environment.status!=='ready'||environment.lifecycle?.phase!=='active'||environment.hostLifecycle!=='active'||!environment.path)throw new Error('REEL_BB_DESTINATION_ENVIRONMENT_CHANGED');
+    if(environment.id!==thread.environmentId||environment.projectId!==projectId||!environment.hostId||environment.status!=='ready'||environment.lifecycle?.phase!=='active'||environment.hostLifecycle!=='active'||!environment.path)throw new Error('REEL_BB_DESTINATION_ENVIRONMENT_CHANGED');
     const host=await api.hosts.get({hostId:environment.hostId});
-    if(host.id!==config.primaryHostId||host.status!=='connected'||host.lifecycle?.phase!=='active')throw new Error('REEL_BB_DESTINATION_HOST_UNAVAILABLE');
+    if(host.id!==environment.hostId||host.status!=='connected'||host.lifecycle?.phase!=='active')throw new Error('REEL_BB_DESTINATION_HOST_UNAVAILABLE');
     if(!project.sources?.some(source=>source.hostId===environment.hostId&&pathInside(environment.path,source.path)))throw new Error('REEL_BB_DESTINATION_PROJECT_PATH_MISMATCH');
     const identity={threadId,projectId,environmentId:environment.id,hostId:host.id,path:environment.path,providerId:thread.providerId,visibility:thread.visibility};
     ensureOpen();
-    return {identity,fingerprint:hash(identity),label:{threadId,title:thread.title||thread.titleFallback||'Untitled',projectId,projectName:project.name,hostId:host.id,hostName:host.name,path:environment.path,providerId:thread.providerId,status:thread.status}};
+    const fingerprint=hash(identity);
+    return {identity,fingerprint,label:{threadId,title:thread.title||thread.titleFallback||'Untitled',projectId,projectName:project.name,hostId:host.id,hostName:host.name,path:environment.path,providerId:thread.providerId,status:thread.status,fingerprint}};
   }
   async function validate(value){
     const current=await resolveDestination(value.destination.identity.threadId,value.destination.identity.projectId);
@@ -143,29 +150,35 @@ export function createReelHandoffs({sdk,kv,pluginId,nativeCall=rejectNativeWorke
     return operations.filter(Boolean).map(operation=>({operationKey:operation.operationKey,tool:operation.tool,state:operation.state==='possibly_delivered'&&recordMatches(operation,scope)?'independently_verified':operation.state}));
   }
   return {
-    async destinations(projectId){
+    async destinations(projectId,hostId){
       ensureOpen();
       const api=sdk();
       const config=await api.system.config();
-      if(!config.primaryHostId)throw new Error('REEL_BB_PRIMARY_HOST_UNKNOWN');
+      const selectedHostId=hostId||config.primaryHostId;
+      if(!selectedHostId)throw new Error('REEL_BB_DESTINATION_HOST_REQUIRED');
+      const host=await api.hosts.get({hostId:selectedHostId});
+      if(host.id!==selectedHostId||host.status!=='connected'||host.lifecycle?.phase!=='active')throw new Error('REEL_BB_DESTINATION_HOST_UNAVAILABLE');
       // A global nav panel may have no current project. The list remains
       // bounded and every candidate is resolved independently before binding.
-      const rows=await api.threads.list({...(projectId?{projectId}:{}),hostId:config.primaryHostId,archived:false,includeHidden:false,limit:100});
-      const candidates=rows.filter(t=>t.providerId==='codex'&&t.visibility==='visible'&&t.archivedAt===null&&t.deletedAt===null&&t.environmentHostId===config.primaryHostId&&['idle','active'].includes(t.status));
+      const rows=await api.threads.list({...(projectId?{projectId}:{}),hostId:selectedHostId,archived:false,includeHidden:false,limit:100});
+      const candidates=rows.filter(t=>t.providerId==='codex'&&t.visibility==='visible'&&t.archivedAt===null&&t.deletedAt===null&&t.environmentHostId===selectedHostId&&['idle','active'].includes(t.status));
       const checked=await Promise.allSettled(candidates.slice(0,50).map(t=>resolveDestination(t.id,t.projectId)));
-      return {destinations:checked.filter(r=>r.status==='fulfilled').map(r=>r.value.label),bounded:rows.length===100||candidates.length>50};
+      return {destinations:checked.filter(r=>r.status==='fulfilled'&&r.value.identity.hostId===selectedHostId).map(r=>r.value.label),bounded:rows.length===100||candidates.length>50};
     },
-    async bind({sessionId,threadId,projectId}){
+    async bind({sessionId,threadId,projectId,hostId,fingerprint}){
       return exclusively(async()=>{
+        if(!hostId||!fingerprint)throw new Error('REEL_BB_DESTINATION_SELECTION_REQUIRED');
         const existing=sessions.get(sessionId);
         if(existing&&existing.expiresAt>=now()){
           if(existing.destination.identity.threadId!==threadId||existing.destination.identity.projectId!==projectId)throw new Error('REEL_BB_PANEL_ALREADY_BOUND_REOPEN_TO_CHANGE');
+          if(hostId&&hostId!==existing.destination.identity.hostId||fingerprint&&fingerprint!==existing.destination.fingerprint)throw new Error('REEL_BB_DESTINATION_CHANGED_REBIND_REQUIRED');
           await validate(existing);
           return {bindingToken:existing.token,destination:existing.destination.label};
         }
         for(const [key,value]of sessions)if(value.expiresAt<now())sessions.delete(key);
         if(sessions.size>=MAX_SESSIONS)throw new Error('REEL_BB_TOO_MANY_OPEN_PANELS');
         const destination=await resolveDestination(threadId,projectId);
+        if(hostId&&hostId!==destination.identity.hostId||fingerprint&&fingerprint!==destination.fingerprint)throw new Error('REEL_BB_DESTINATION_CHANGED_REBIND_REQUIRED');
         const value={token:uuid(),destination,expiresAt:now()+SESSION_MS,prepared:new Map()};
         sessions.set(sessionId,value);
         return {bindingToken:value.token,destination:destination.label};

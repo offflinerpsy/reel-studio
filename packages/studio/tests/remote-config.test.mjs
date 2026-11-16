@@ -36,7 +36,7 @@ test('relay fails closed without explicit config and passes validated arguments 
  assert.notEqual(absent.status,0);assert.equal(existsSync(capture),false);
  const accepted=spawnSync(process.execPath,[relay],{cwd:resolve('.'),env:{...env,REEL_REMOTE_CONFIG:config},input:'',encoding:'utf8'});
  assert.equal(accepted.status,0,accepted.stderr);
- const args=readFileSync(capture,'utf8').trim().split('\n');assert.deepEqual(args.slice(-3),[valid.sshHost,valid.remoteNode,valid.remotePlugin+'/server/stdio-compress.mjs']);
+ const args=readFileSync(capture,'utf8').trim().split('\n');assert.deepEqual(args.slice(-5),[valid.sshHost,'env',`REEL_STUDIO_HOME=${valid.remoteHome}`,valid.remoteNode,valid.remotePlugin+'/server/stdio-compress.mjs']);
  writeFileSync(config,JSON.stringify({...valid,remoteNode:'/usr/bin/node;touch /tmp/forbidden'}));rmSync(capture);
  const rejected=spawnSync(process.execPath,[relay],{cwd:resolve('.'),env:{...env,REEL_REMOTE_CONFIG:config},input:'',encoding:'utf8'});
  assert.notEqual(rejected.status,0);assert.equal(existsSync(capture),false);

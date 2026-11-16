@@ -12,7 +12,7 @@ export function createMediaTransfer(resolveMedia){
   const key=[file,st.size,st.mtimeMs,st.ctimeMs].join(':');
   if(cache.get(id)?.key!==key){
    const sha256=createHash('sha256').update(readFileSync(file)).digest('hex');
-   const mimeType=extname(file)==='.mp4'?'video/mp4':extname(file)==='.png'?'image/png':extname(file)==='.webp'?'image/webp':'image/jpeg';
+   const mimeType=extname(file)==='.mp4'?'video/mp4':extname(file)==='.wav'?'audio/wav':extname(file)==='.png'?'image/png':extname(file)==='.webp'?'image/webp':'image/jpeg';
    cache.set(id,{key,file,value:{bytes:st.size,chunkBytes:MEDIA_CHUNK_BYTES,chunks:Math.ceil(st.size/MEDIA_CHUNK_BYTES),sha256,mimeType}});
   }
   return cache.get(id);

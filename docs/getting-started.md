@@ -6,11 +6,13 @@ Reel Studio is beta software. Use a separate test workspace and test data while 
 
 - Node.js 22 or later and npm.
 - FFmpeg and `ffprobe` available on your `PATH`.
-- For real generation, an authenticated Codex environment and any credentials required by the integrations you select. An isolated local preview does not require production data.
+- For generation, a Codex CLI that supports `codex app-server --stdio`, authenticated on the execution host. `CODEX_BIN` can select a non-default executable.
+- Python 3 for the bundled editable examples. Their rendering dependencies are described in each example.
+- Credentials only for the integrations you choose. See [configuration](configuration.md).
 
 ## Run locally
 
-After the repository is published, clone it and run:
+Clone the repository and run:
 
 ```sh
 git clone https://github.com/offflinerpsy/reel-studio.git
@@ -21,7 +23,7 @@ npm test
 npm run preview
 ```
 
-The preview is for exploring the interface with isolated data. It does not establish that a host integration, external service, generation, or publication works in your environment.
+The command prints a temporary library path and starts the preview server. Use the preview address it reports, then stop it with `Ctrl+C` when finished. The preview is for exploring the interface with isolated data. It does not establish that a host integration, external service, generation, or publication works in your environment.
 
 Setup runs `npm ci` separately in each package. If either `node_modules` is a symbolic link, setup stops without modifying its target. Preserve or move the link before installing dependencies locally.
 
@@ -49,7 +51,7 @@ bb plugin build ./bb
 bb plugin install ./bb
 ```
 
-The public adapter is not a drop-in replacement for an existing private installation. Preserve existing libraries and integrations; installing does not migrate their configuration or data. Host installation and appearance can vary with the host version.
+The public adapter is not a drop-in replacement for an existing private installation. Preserve existing libraries and integrations; installing does not migrate their configuration or data. Host installation and appearance can vary with the host version. Review [host compatibility](hosts.md) before installing and [configuration](configuration.md) before enabling real work.
 
 ## Build and synchronize
 

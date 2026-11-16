@@ -43,7 +43,7 @@ export function relayStudio({input,output,child,root}){
 if(process.argv[1]&&resolve(process.argv[1])===fileURLToPath(import.meta.url)){
  const root=resolve(dirname(fileURLToPath(import.meta.url)),'..');
  const config=loadRemoteConfig();
- const child=spawn('ssh',['-C','-T','-o','BatchMode=yes','-o','ConnectTimeout=10','-o','ServerAliveInterval=15','-o','ServerAliveCountMax=2',config.sshHost,config.remoteNode,config.remotePlugin+'/server/stdio-compress.mjs'],{stdio:['pipe','pipe','inherit']});
+ const child=spawn('ssh',['-C','-T','-o','BatchMode=yes','-o','ConnectTimeout=10','-o','ServerAliveInterval=15','-o','ServerAliveCountMax=2',config.sshHost,'env',`REEL_STUDIO_HOME=${config.remoteHome}`,config.remoteNode,config.remotePlugin+'/server/stdio-compress.mjs'],{stdio:['pipe','pipe','inherit']});
  relayStudio({input:process.stdin,output:process.stdout,child,root});
  child.once('error',()=>{console.error('Linux Studio connection could not start. No MacBook fallback.');process.exitCode=1;});
  child.once('exit',code=>process.exit(code??1));

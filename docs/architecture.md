@@ -10,3 +10,5 @@ Build and package from the shared source. Synchronization checks for conflicting
 The studio organizes editable drafts and templates alongside immutable video versions, connections, and approval and publication records. A stored approval or publication record describes the recorded state; verify the actual destination before treating an external action as complete. If an external result is uncertain, reconcile the same target before trying again.
 
 Runtime data, credentials, account bindings and personal media belong outside the public source tree. The included examples are intended for editing and reuse; check each example's provenance and any third-party terms before redistribution.
+
+By default the server starts a local Codex `app-server` process. An explicit remote configuration can select the SSH relay and compute router. That route requires separately provisioned hosts and paths; it does not migrate existing jobs or credentials. See [configuration](configuration.md) for runtime and integration boundaries.

@@ -1,0 +1,63 @@
+{
+  "schemaVersion": 1,
+  "id": "paper-worlds-science",
+  "name": "Paper worlds science",
+  "kind": "design-recipe",
+  "executable": false,
+  "provenance": {
+    "sourceDesignRevision": "V5",
+    "description": "Sanitized design constraints adapted from an owner-authored paper-worlds template.",
+    "license": "MIT",
+    "externalAssetsIncluded": false
+  },
+  "format": {
+    "width": 1080,
+    "height": 1920,
+    "aspectRatio": "9:16"
+  },
+  "visuals": {
+    "art": "Bright topic-specific cut-paper scenes with crisp edges and shadows.",
+    "independentLayersMinimum": 3,
+    "layering": "Keep foreground subject objects separate from the background; avoid a flattened hero scene.",
+    "motion": [
+      "Visible restrained parallax",
+      "Small pivots",
+      "Topic-appropriate object animation",
+      "A new causal timeline for each explanation"
+    ],
+    "composition": "Keep foreground science diagrams dominant.",
+    "topicConstraint": "Use stars only when they explain a space topic."
+  },
+  "typography": {
+    "referenceFamily": "Manrope",
+    "style": "Non-handwritten",
+    "headingMinimumPx": 86,
+    "noteMinimumPx": 54,
+    "labelMinimumPx": 48,
+    "textZones": "Stable cream or navy areas with wrapping and checked phone-size contrast."
+  },
+  "editorial": {
+    "structure": "Open with a natural question and explain its concrete causal mechanism.",
+    "evidence": "Check primary factual sources and preserve qualifiers.",
+    "cover": "Create a topic-specific 1080x1920 cover with a natural search phrase and a short SEE WHY or SEE HOW invitation.",
+    "publicationCopy": "Use a natural key phrase first; avoid reach promises.",
+    "closing": "Write and record your own short closing invitation."
+  },
+  "audio": {
+    "music": "none",
+    "soundEffects": "sparse",
+    "speech": "Preserve complete word endings and check transitions into the closing invitation."
+  },
+  "captions": {
+    "timed": true,
+    "instruction": "Prepare captions for the languages of your brief and check them against the final audio."
+  },
+  "review": [
+    "Decode the complete encoded video.",
+    "Inspect rendered pixels and visible independent layer motion.",
+    "Check phone-size typography, wrapping and contrast.",
+    "Listen to complete speech, word endings and audio transitions.",
+    "Verify caption timing against the final audio.",
+    "Retain editable source and hashes of final deliverables."
+  ]
+}
