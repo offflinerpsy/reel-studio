@@ -7,13 +7,6 @@ const fonts=new Map([
  ['studio/skills/kinetic-promo-video/assets/runtime/Manrope.ttf','3ae11c49db0455a3cc33e37d380f20fdb8c7f8b41dc07625c177e3d87a9d6ae6'],
  ['studio/skills/portfolio-showreel-video/assets/starter/assets/runtime/Manrope.ttf','3ae11c49db0455a3cc33e37d380f20fdb8c7f8b41dc07625c177e3d87a9d6ae6'],
 ]);
-// Sanitized software showcase assets: review changes before updating an exact digest.
-// Unlike fonts, these paths are identical in the source tree and standalone package.
-const showcaseMedia=new Map([
- ['docs/media/reel-studio-demo.gif','8f519cf14af1e7ef45c14947a0594a84e342e7a07997634da1270478e0057934'],
- ['docs/media/reel-studio-demo.mp4','03dddf420e93fdc3d40d710606c927e6c2e4cb5a8e72bde753578c048b8f1a67'],
- ['docs/media/reel-studio-overview.png','990c2ce8c868673b34e3d345aaf5d5498d30af6b6dceacf94b9604572f3975a7'],
-]);
 const rules=[
  ['private path',/\/(?:Users|home)\/[A-Za-z0-9_.-]+|\/root\/|[A-Za-z]:(?:\\{1,2}|\/)Users(?:\\{1,2}|\/)[A-Za-z0-9_.-]+/g],
  ['private identifier',/\b(?:thr|proj|host)_[A-Za-z0-9_-]{12,}\b/g],
@@ -42,7 +35,6 @@ function instanceData(value){
 }
 export function inspectPublicContent(name,data){
  name=name.split('\\').join('/');const findings=[];
- if(showcaseMedia.has(name))return showcaseMedia.get(name)===createHash('sha256').update(data).digest('hex')?[]:['unreviewed media bytes'];
  if(/\.(?:mp4|mov|m4v|webm|mp3|wav|m4a|gif|png|jpe?g|webp|avif|heic)$/i.test(name))return ['media file'];
  if(data.includes(0)){
   const canonical=name.replace(/^packages\//,'');

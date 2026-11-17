@@ -6,15 +6,6 @@
 
 Reel Studio — проект Алекса Яроша с открытым исходным кодом. Здесь можно собирать идеи и материалы, выбирать редактируемые шаблоны анимации, запускать производство и просматривать конкретные версии ролика. Согласования сохраняются вместе с выбранным видео, текстом публикации и площадкой.
 
-<picture>
-  <source media="(prefers-reduced-motion: reduce)" srcset="docs/media/reel-studio-overview.png">
-  <img src="docs/media/reel-studio-demo.gif" alt="Reel Studio: библиотека видео, редактируемые форматы анимации и бриф ролика." width="1080">
-</picture>
-
-[Полный тур (MP4)](docs/media/reel-studio-demo.mp4) · [Открыть статичный обзор](docs/media/reel-studio-overview.png)
-
-Экраны сняты в отдельной тестовой библиотеке с вымышленными проектами. Превью проигрывается один раз; личные видео и подключённые аккаунты не используются. Интерфейс и техническая документация — на английском.
-
 ## Что можно сделать
 
 - Начать с брифа и своих материалов или адаптировать [Kinetic Promo](examples/kinetic-promo/README.md) и [Portfolio Showreel](examples/portfolio-showreel/README.md).

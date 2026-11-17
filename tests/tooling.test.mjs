@@ -5,7 +5,6 @@ import {tmpdir} from 'node:os';
 import {join,dirname} from 'node:path';
 import {spawnSync} from 'node:child_process';
 import {mkdirSync,writeFileSync} from 'node:fs';
-import {createHash} from 'node:crypto';
 import {studio,bb} from '../scripts/files.mjs';
 import {version} from '../scripts/common.mjs';
 import {inspectPublicContent} from '../scripts/public-content.mjs';
@@ -76,33 +75,17 @@ test('only exact reviewed font paths and bytes pass in source and package layout
  assert.deepEqual(inspectPublicContent('examples/Manrope.ttf',bytes),['unexpected binary']);
  assert.deepEqual(inspectPublicContent(path,Buffer.from([0,1,2,3])),['unexpected binary']);
 });
-test('reviewed showcase media passes source and package gates; changed bytes and extra media never promote output',async()=>{
+test('source and package gates reject unreviewed GIF, MP4 and PNG without promoting output',async()=>{
  const root=await fixture(),out=join(root,'release',`reel-studio-${version}`);
- const names=['reel-studio-demo.gif','reel-studio-demo.mp4','reel-studio-overview.png'],originals=new Map();
  try{
   await mkdir(join(root,'docs/media'),{recursive:true});
-  for(const name of names){const path='docs/media/'+name,data=await readFile(join(src,path));originals.set(path,data);await writeFile(join(root,path),data);}
-  let source=run(root,'scan-public.mjs'),packaged=run(root,'package.mjs');
-  assert.equal(source.status,0,source.stderr);assert.equal(packaged.status,0,packaged.stderr);
-  const manifest=JSON.parse(await readFile(join(out,'MANIFEST.json')));
-  for(const [path,data] of originals){assert.deepEqual(await readFile(join(out,path)),data);assert.equal(manifest.files.find(f=>f.path===path)?.sha256,createHash('sha256').update(data).digest('hex'));}
-  await rm(out,{recursive:true});
-  for(const [path,data] of originals){
-   const changed=Buffer.from(data);changed[changed.length-1]^=1;await writeFile(join(root,path),changed);
-   source=run(root,'scan-public.mjs');packaged=run(root,'package.mjs');
-   assert.equal(source.status,1);assert.ok(source.stderr.includes(`${path}: unreviewed media bytes`));
-   assert.notEqual(packaged.status,0);assert.ok(packaged.stderr.includes(`${path}: unreviewed media bytes`));await assert.rejects(access(out));
-   // Text-like replacement bytes must not bypass the digest check either.
-   assert.deepEqual(inspectPublicContent(path,Buffer.from('replacement')),['unreviewed media bytes']);
-   await writeFile(join(root,path),data);
-  }
-  for(const path of ['docs/media/private.mp4','docs/media/private.gif','docs/media/private.png','docs/media/nested/reel-studio-demo.mp4']){
-   await mkdir(dirname(join(root,path)),{recursive:true});await writeFile(join(root,path),originals.get('docs/media/reel-studio-demo.mp4'));
-   source=run(root,'scan-public.mjs');packaged=run(root,'package.mjs');
+  for(const ext of ['gif','mp4','png']){
+   const path=`docs/media/unreviewed.${ext}`;
+   await writeFile(join(root,path),Buffer.from([0,1,2,3]));
+   const source=run(root,'scan-public.mjs'),packaged=run(root,'package.mjs');
    assert.equal(source.status,1);assert.ok(source.stderr.includes(`${path}: media file`));
    assert.notEqual(packaged.status,0);assert.ok(packaged.stderr.includes(`${path}: media file`));await assert.rejects(access(out));await rm(join(root,path));
   }
-  assert.deepEqual(inspectPublicContent('packages/docs/media/reel-studio-demo.mp4',originals.get('docs/media/reel-studio-demo.mp4')),['media file']);
  }finally{await rm(root,{recursive:true,force:true});}
 });
 test('package includes reviewed README locales and blocks private or symlinked translations',async()=>{

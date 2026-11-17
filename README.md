@@ -20,19 +20,6 @@
   <img src="docs/media/project-status.svg" alt="MIT license · Node.js 22 or newer · Public beta" width="316">
 </p>
 
-<picture>
-  <source media="(prefers-reduced-motion: reduce)" srcset="docs/media/reel-studio-overview.png">
-  <img src="docs/media/reel-studio-demo.gif" alt="Reel Studio preview: a video library, editable motion formats and a film brief." width="1080">
-</picture>
-
-<p align="center">
-  <a href="docs/media/reel-studio-demo.mp4">Full walkthrough (MP4)</a> · <a href="docs/media/reel-studio-overview.png">View the static overview</a>
-  <br>
-  <sub>A short animated tour, captured from the shared Studio preview with fictional projects. The full walkthrough also shows settings and version review.</sub>
-  <br>
-  <sub>No personal media or connected provider accounts. The preview plays once; a static alternative is available above.</sub>
-</p>
-
 <p align="center">
   <a href="https://github.com/offflinerpsy/reel-studio/releases/tag/v0.4.1"><img src="docs/media/link-download.svg" alt="Download the 0.4.1 beta" width="172"></a>
   &nbsp;
@@ -77,7 +64,7 @@ The preview opens an isolated library. For production, install FFmpeg with `ffpr
 | [Portfolio Showreel](examples/portfolio-showreel/README.md) | Layouts, page motion, branding and camera transitions. |
 | [Paper Worlds Science](examples/paper-worlds-science/README.md) | A sanitized layered-science design recipe. A creative brief, not a ready-to-render film. |
 
-The bundled examples use fictional content and include dependency notices. The walkthrough's sample projects illustrate the interface; personal finished films are not included.
+The bundled examples use fictional content and include dependency notices. Personal finished films are not included.
 
 ## Connect only what you need
 
